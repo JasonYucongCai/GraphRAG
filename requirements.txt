@@ -1,0 +1,56 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Graph Knowledge Network for Agentic Work — dependencies
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# LICENSE AUDIT (verified 2026-08-02):
+#
+#   RUNTIME dependencies (tools/ + LLMs/ + ui/) — ALL PERMISSIVE:
+#     openai       == Apache-2.0       permissive ✅
+#     numpy        == BSD-3-Clause     permissive ✅
+#     flask        == BSD-3-Clause     permissive ✅
+#     jsonschema   == MIT              permissive ✅
+#     httpx        == BSD-3-Clause     permissive ✅ (web_search / pushover)
+#     gradio       == Apache-2.0       permissive ✅ (chat UI)
+#
+#   NOTEBOOK/EXECUTION dependencies (running the .ipynb demos) — permissive:
+#     ipykernel    == BSD-3-Clause     permissive ✅
+#     nbclient     == BSD-3-Clause     permissive ✅
+#     jupyter-client == BSD-3-Clause   permissive ✅
+#     nbformat     == BSD-3-Clause     permissive ✅
+#
+#   PDF EXTRACTION (assets/scripts/) — pypdf, permissive ✅
+#     pypdf        == BSD-3-Clause     permissive ✅ (replaces PyMuPDF/AGPL-3.0;
+#                                      NO copyleft dependencies anywhere in the
+#                                      project)
+#
+#   OPTIONAL / analysis-only packages (not required to run the project):
+#     pyvis        == MIT              permissive ✅ (obsidian notebook demo)
+#     networkx     == BSD-3-Clause     permissive ✅ (reference only; the
+#                                      tools/ package is self-contained)
+#     opendataloader-pdf == Apache-2.0 permissive ✅ (PDF extraction demo)
+#
+#   ✅ NO GPL/LGPL/AGPL/EPL/MPL (copyleft) packages are used anywhere.
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── runtime ───────────────────────────────────────────────────────────────────
+openai>=2.0.0            # Apache-2.0  — DeepSeek Chat Completions (OpenAI-compatible)
+numpy>=1.26              # BSD-3-Clause — encoder layer vector index
+flask>=3.0               # BSD-3-Clause — web control center (ui/server.py)
+jsonschema>=4.0          # MIT         — tool argument validation (IPP pipeline)
+httpx>=0.27              # BSD-3-Clause — web_search + Pushover (tools/codex_tools.py)
+
+# ── chat UI (optional: Gradio agent chat) ─────────────────────────────────────
+gradio>=6.0              # Apache-2.0 — traditional chat interface (ui/gradio_chat.py)
+
+# ── notebook execution (optional: run the demo .ipynb files) ─────────────────
+ipykernel>=6.0           # BSD-3-Clause (Jupyter)
+nbclient>=0.8            # BSD-3-Clause (Jupyter)
+nbformat>=5.0            # BSD-3-Clause (Jupyter)
+
+# ── PDF extraction (assets/scripts/ — pypdf, permissive) ─────────────────────
+pypdf>=5.0               # BSD-3-Clause — PDF text extraction (extract_pdfs.py)
+
+# ── optional analysis tools (NOT required) ───────────────────────────────────
+# pyvis                 # MIT — interactive graph demo (obsidian notebook)
+# networkx              # BSD-3-Clause — reference analytics only
+# opendataloader-pdf    # Apache-2.0 — structure-aware PDF extraction demo

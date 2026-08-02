@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Graph Knowledge Network — Control Center</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <span class="logo">⬡</span>
+      <div>
+        <h1>Graph Knowledge Network</h1>
+        <span id="health-line" class="sub">connecting…</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span id="provider-badge" class="badge">…</span>
+      <button id="btn-rebuild" class="btn ghost" title="Rebuild graph from assets/">↻ rebuild</button>
+      <button id="btn-refresh" class="btn ghost" title="Refresh">⟳ refresh</button>
+    </div>
+  </header>
+
+  <div id="layout">
+    <!-- ── Sidebar ───────────────────────────────────────────── -->
+    <aside id="sidebar">
+      <nav id="tabs">
+        <button class="tab active" data-tab="graph">Graph</button>
+        <button class="tab" data-tab="search">Search</button>
+        <button class="tab" data-tab="agent">Agent</button>
+        <button class="tab" data-tab="database">Database</button>
+        <button class="tab" data-tab="runs">Runs</button>
+      </nav>
+
+      <!-- Graph tab -->
+      <section id="tab-graph" class="tabpane active">
+        <div id="summary-cards" class="cards"></div>
+        <div class="field">
+          <input id="node-filter" type="search" placeholder="filter nodes…">
+        </div>
+        <div id="node-list" class="list"></div>
+      </section>
+
+      <!-- Search tab -->
+      <section id="tab-search" class="tabpane">
+        <div class="field">
+          <textarea id="search-query" rows="3" placeholder="Vector RAG query over the encoder layer…"></textarea>
+        </div>
+        <div class="row">
+          <input id="search-k" type="number" value="10" min="1" max="50" step="1" title="top-k">
+          <button id="btn-search" class="btn primary">Search</button>
+        </div>
+        <div id="search-results" class="results"></div>
+      </section>
+
+      <!-- Agent tab -->
+      <section id="tab-agent" class="tabpane">
+        <h3>🤖 Codex agents — chat with the network</h3>
+        <div class="field"><label>Agent</label>
+          <select id="codex-agent-select">
+            <option value="codex_normal" selected>codex_normal — general tasks</option>
+            <option value="codex_RAG">codex_RAG — ask the knowledge network (retrieval)</option>
+            <option value="codex_growth">codex_growth — improve notes & expand the network</option>
+          </select>
+        </div>
+        <div class="field"><label>Anchor node (optional, for RAG/growth)</label>
+          <input id="codex-agent-node" list="node-datalist" placeholder="node id or name">
+        </div>
+        <div class="field"><label>Task / message</label>
+          <textarea id="codex-agent-task" rows="4" placeholder="e.g. List the retrieval techniques in the local graph, or: review the top threats in this project…"></textarea>
+        </div>
+        <button id="btn-codex-agent" class="btn primary">Run agent</button>
+        <div id="agent-status" class="status"></div>
+
+        <!-- foldable agentic process (thinking / message / tools) -->
+        <details id="process-details" class="hidden">
+          <summary id="process-summary">▸ Agentic process (thinking · messages · tools)</summary>
+          <div id="process-trace"></div>
+        </details>
+
+        <!-- final answer (full, scrollable) -->
+        <h3>📄 Final answer</h3>
+        <div id="agent-answer" class="answer hidden"></div>
+      </section>
+
+      <!-- Database tab -->
+      <section id="tab-database" class="tabpane">
+        <h3>🗄 Note database (md project store)</h3>
+        <div class="field">
+          <label>Open project</label>
+          <div class="row">
+            <select id="db-project-select"><option value="">— none open —</option></select>
+            <button id="btn-db-open" class="btn">Open</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Create new project</label>
+          <div class="row">
+            <input id="db-create-name" placeholder="project name (a-z0-9_-)">
+            <button id="btn-db-create" class="btn primary">Create</button>
+          </div>
+          <input id="db-create-desc" placeholder="description (optional)" style="margin-top:6px">
+        </div>
+        <div id="db-status" class="status"></div>
+        <div class="row" style="margin: 10px 0">
+          <button id="btn-db-sync" class="btn">⬇ export graph → notes</button>
+          <button id="btn-db-refresh" class="btn ghost">⟳</button>
+        </div>
+        <h3>📝 Notes (one .md per node)</h3>
+        <div id="db-note-list" class="list"></div>
+        <div id="db-editor" class="hidden">
+          <div class="field">
+            <label id="db-editor-title">note</label>
+            <textarea id="db-editor-content" rows="10" placeholder="## Content&#10;&#10;The knowledge of this node…"></textarea>
+          </div>
+          <div class="field">
+            <label>VCL summary (version log entry)</label>
+            <input id="db-editor-summary" placeholder="what changed?">
+          </div>
+          <div class="row">
+            <button id="btn-db-save" class="btn primary">💾 Save + VCL</button>
+            <button id="btn-db-cancel" class="btn ghost">✕</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Runs tab -->
+      <section id="tab-runs" class="tabpane">
+        <h3>📜 Run log (VCL)</h3>
+        <div id="run-list" class="list"></div>
+      </section>
+    </aside>
+
+    <!-- ── Main canvas ───────────────────────────────────────── -->
+    <main id="canvas-area">
+      <div id="canvas-controls">
+        <span class="ctl-label">view</span>
+        <button id="view-global" class="btn chip active">global</button>
+        <button id="view-local" class="btn chip">local</button>
+        <span class="ctl-label">depth</span>
+        <select id="depth-select">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+        </select>
+        <span class="ctl-label">viz</span>
+        <button id="viz-svg" class="btn chip active">SVG</button>
+        <button id="viz-interactive" class="btn chip">Interactive</button>
+        <button id="viz-mermaid" class="btn chip">Mermaid</button>
+        <span id="canvas-info" class="info"></span>
+        <button id="btn-drawer" class="btn chip" title="Toggle node details panel">☰ details</button>
+      </div>
+      <div id="canvas-body">
+        <svg id="graph-canvas" width="100%" height="100%"></svg>
+        <iframe id="viz-frame" class="hidden" title="interactive graph"></iframe>
+        <pre id="mermaid-view" class="hidden"></pre>
+
+        <!-- Node detail drawer (flex sibling — never overlays the graph) -->
+        <aside id="drawer" class="hidden">
+          <div id="drawer-head">
+            <h3 id="drawer-title">…</h3>
+            <button id="drawer-close" class="btn ghost">✕</button>
+          </div>
+          <div id="drawer-body"></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <datalist id="node-datalist"></datalist>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

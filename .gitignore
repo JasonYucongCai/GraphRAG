@@ -1,0 +1,77 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# Graph Knowledge Network for Agentic Work — .gitignore
+# ══════════════════════════════════════════════════════════════════════════════
+# Syntax: # comment · folder/ · *.ext · **/pattern · !negate · /root-anchored
+
+# ─── 🔐 SECURITY: credentials — NEVER commit ⚠️ ───────────────────────────────
+# LLMs/.env holds the real DeepSeek API key (DEEPSEEK_API_KEY=sk-...).
+# If it was ever committed, ROTATE the key immediately.
+.env
+.env.*
+.env.example
+*.pem
+*.key
+secrets.*
+
+# ─── Python ─────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+.conda/
+*.pyc
+
+# ─── Jupyter ────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints/
+
+# ─── Generated / runtime artifacts (regenerable) ────────────────────────────
+# The knowledge graph + vector index are rebuilt by tools/build.py
+graph_data/
+# Note-based projects are generated from the graph by database_tool
+database/
+# Chunk caches / exports
+*.bak
+chat_history/
+
+# ─── Generated extraction outputs (regenerate with assets/scripts/*) ────────
+assets/extracted/
+assets/odl_output/
+assets/odl_hybrid_output/
+assets/docling_direct_output/
+assets/previous-resources/
+
+# ─── IDE / Editor ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.code-workspace
+
+# ─── OS generated files ─────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ─── Logs & temp files ──────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+tmp/
+temp/
