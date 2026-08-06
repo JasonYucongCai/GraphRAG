@@ -13,12 +13,14 @@ classes, build scripts, and every tool now live here.
 | Module | Formerly | Role |
 |---|---|---|
 | `config.py` | `graph_network/config.py` + tools shim | single `Config`: workspace, DeepSeek, guardrails, `.env` loader, Pushover + conda extras |
-| `ipp.py` | `graph_network/ipp.py` | IPP = (Input, Φ, Output); `BaseTool` 4-phase lifecycle; `ToolRegistry` |
+| `IPP.py` | `graph_network/ipp.py` | legacy IPP = (Input, Φ, Output); `BaseTool` 4-phase lifecycle; `ToolRegistry` |
+| `IPP_runtime.py` | — | the IPP **v0.2.8** bridge: `verify_node()` (17 invariants), `tool_node()`, `construct_from_file()` |
 | `graph.py` | `graph_network/graph.py` | `KnowledgeGraph` (KGP): nodes, typed §4.3a edges, depth-3 local graphs, PageRank, JSON persistence |
 | `encoder.py` | `graph_network/encoder.py` | Encoder layer: chunk → embed → numpy vector index → hybrid search |
 | `engine.py` | `graph_network/engine.py` | `AgentEngine` (IPP agentic loop) with `chat_stream()` + `run_with_trace()` |
 | `agents.py` | `graph_network/agents.py` | `NodeAgent` (operate on a node) + `GrowthAgent` (recursive self-improvement) |
 | `build.py` | `graph_network/build.py` | `build_graph()` seeds the network from `assets/`; `export_backward_compatible()` |
+| `build_cy3.py` | — | `build_cy3_graph()` seeds the Calabi–Yau graph from `assets/20260806 CalabiYau3fold/`; `sync_project_assets()` (node↔file manifest) |
 | `graph_tools.py` | `graph_network/tools.py` | graph IPP tools: `get_local_graph`, `search_nodes`, `read_node`, `register_node`, … |
 | `codex_tools.py` | — (original codex suite) | the 19-tool flat suite (files, shell, search, agents, memory, web) |
 | `checks.py` | — | read-only audit tools: `review_top_threats`, `standard_check`, `advanced_check` |
@@ -54,9 +56,23 @@ from tools.encoder import EncoderLayer
 from tools.engine import AgentEngine
 from tools.agents import NodeAgent, GrowthAgent
 from tools.build import build_graph, export_backward_compatible
+from tools.IPP_runtime import verify_node          # IPP v0.2.8 17 invariants
 
 ensure_tools()                                   # register graph + db + audit tools
 result = execute_tool("get_local_graph", {"node_id": "g_retrieval"}, ctx)
+```
+
+## IPP v0.2.8 runtime
+
+The v0.2.8 formal model lives in the main `ipp/` package
+(`ipp/IPP_constructor.py`, `ipp/IPP_executor.py`, …). `tools/IPP_runtime.py`
+is the bridge from this suite:
+
+```python
+from tools.IPP_runtime import verify_node, tool_node, construct_from_file
+
+failures = verify_node(node)        # [] == ALL 17 OK
+node = construct_from_file("LLMs/ipp.json", bindings={"provider": llm})
 ```
 
 ## Tool Dispatch Flow

@@ -34,7 +34,7 @@ from tools.codex_tools import (  # noqa: F401
 )
 
 # ── graph tools + database mutations (IPP BaseTool classes) ──────────────────
-from tools.ipp import ToolRegistry, ToolResult, ToolContext  # noqa: F401
+from tools.IPP import ToolRegistry, ToolResult, ToolContext  # noqa: F401
 from tools.graph_tools import ensure_tools as _ensure_graph_tools
 from database.database_tool import ensure_database_tools as _ensure_db_tools
 from tools.checks import ensure_check_tools as _ensure_check_tools

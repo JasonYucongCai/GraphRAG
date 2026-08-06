@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from tools.config import Config
-from tools.ipp import BaseTool, ToolContext, ToolResult
+from tools.IPP import BaseTool, ToolContext, ToolResult
 
 logger = logging.getLogger("tools.graph_tools")
 

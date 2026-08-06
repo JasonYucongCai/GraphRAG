@@ -1,5 +1,5 @@
 """
-tools.ipp — Information Processing Protocol (IPP) core.
+tools.IPP — Information Processing Protocol (IPP) core.
 
 Implements the formal IPP abstraction from the Codex Local architecture:
 
@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, Optional, TypeVar, Union
 
-logger = logging.getLogger("tools.ipp")
+logger = logging.getLogger("tools.IPP")
 
 I = TypeVar("I")
 O = TypeVar("O")

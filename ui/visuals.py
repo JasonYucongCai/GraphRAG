@@ -33,6 +33,7 @@ def _node_payload(graph, node) -> dict:
         "color": CAT_COLORS.get(node.category, "#8aa0b0"),
         "category": node.category,
         "description": node.description[:300],
+        "title": node.description[:300],   # vis-network hover tooltip
         "in": node.stats.get("in_degree", 0),
         "out": node.stats.get("out_degree", 0),
         "pr": round(node.stats.get("pagerank", 0.0), 4),
@@ -132,7 +133,11 @@ document.getElementById('stats').textContent =
 network.on('click', (p) => {{
   if (p.nodes && p.nodes.length) {{
     const n = nodes.get(p.nodes[0]);
-    alert(n.label + '\\n\\n' + (n.description || '(no description)'));
+    // tell the parent SPA to open its detail drawer (no alert popups)
+    if (window.parent && window.parent !== window) {{
+      window.parent.postMessage(
+        {{ type: 'graph-node-click', nodeId: n.id }}, '*');
+    }}
   }}
 }});
 </script>

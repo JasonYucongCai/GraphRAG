@@ -47,6 +47,7 @@ assets/odl_output/
 assets/odl_hybrid_output/
 assets/docling_direct_output/
 assets/previous-resources/
+assets/
 
 # ─── IDE / Editor ───────────────────────────────────────────────────────────
 .vscode/

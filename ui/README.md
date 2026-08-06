@@ -8,10 +8,22 @@ knowledge network. No build step, no CDN dependencies — everything serves from
 
 ```bash
 # from the workspace root
-python ui/server.py                     # → http://127.0.0.3:8000
+python ui/server.py                     # → http://127.0.0.3:8000 (default GraphRAG graph)
+python ui/server.py --graph graph_data/cy3   # → serve the Calabi–Yau graph
 python ui/server.py --port 5000         # → http://127.0.0.3:5000
 python ui/server.py --host 127.0.0.1    # → http://127.0.0.1:8000
 ```
+
+`--graph DIR` serves any custom graph folder containing `knowledge_graph.json`
++ `vectors/index.json` (e.g. `graph_data/cy3`); the rebuild button respects it.
+In custom-graph mode the note project is still opened in the Database tab but
+the graph ⇄ notes merge is skipped (the custom graph is authoritative).
+
+**Visualization modes**: `SVG` (force-directed canvas) | `Interactive`
+(PyVis-style vis-network with physics, drag/zoom, hover tooltips) | `Mermaid`
+(dependency flowchart). Clicking a node in the Interactive view opens the
+right-hand **detail drawer** (id, category, degrees, pagerank, description,
+incoming/outgoing edges) via `postMessage` to the parent SPA — no popups.
 
 The server auto-loads the persisted graph from `graph_data/` or builds it from
 `assets/` on first start. The DeepSeek provider is live if the API key is
@@ -47,7 +59,6 @@ read-only chat_mode + foldable process):
 ```bash
 python ui/gradio_chat.py                 # → http://127.0.0.3:7860 (choose agent in the UI)
 python ui/gradio_chat.py --agent codex_RAG
-python codex_normal/chat.py              # → same app, default = codex_normal
 ```
 
 - `codex_normal` — general tasks (files, shell, search, sub-agents, memory, web) + audits

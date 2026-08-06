@@ -26,7 +26,7 @@ from typing import Any, Optional
 import numpy as np
 
 from tools.config import Config
-from tools.ipp import IPP
+from tools.IPP import IPP
 
 logger = logging.getLogger("tools.encoder")
 

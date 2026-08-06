@@ -7,7 +7,7 @@ questions about the knowledge network (codex_RAG), or to grow the network
 
 Run:
     python ui/gradio_chat.py                 # → http://127.0.0.3:7860
-    python codex_normal/chat.py              # → same app, default = codex_normal
+    python ui/gradio_chat.py --agent codex_RAG   # pick a default agent
 """
 from __future__ import annotations
 

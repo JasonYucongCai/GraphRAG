@@ -161,6 +161,15 @@ $("#btn-drawer").addEventListener("click", () => {
   }
 });
 
+// interactive iframe → SPA: a node click opens the detail drawer
+// (instead of a popup). Works for both the global and local views.
+window.addEventListener("message", (ev) => {
+  const d = ev.data || {};
+  if (d.type === "graph-node-click" && d.nodeId) {
+    selectNode(d.nodeId);
+  }
+});
+
 // ── graph: layout (Fruchterman-Reingold with bounded displacement) ─────────
 const LAYOUT_PAD = 70;   // room for labels around the edges
 

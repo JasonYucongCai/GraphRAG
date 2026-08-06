@@ -16,7 +16,7 @@ import logging
 from typing import Optional
 
 from tools.config import Config
-from tools.ipp import IPP
+from tools.IPP import IPP
 
 logger = logging.getLogger("LLMs.deepseek.provider")
 

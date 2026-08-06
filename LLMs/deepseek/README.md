@@ -10,6 +10,30 @@ Completions API lives in this subfolder.
 | `provider.py` | `LLMResult` (ChatCompletion-like envelope), `DeepSeekProvider` (live, IPP), `MockProvider` (offline, deterministic) |
 | `__init__.py` | re-exports `LLMResult`, `DeepSeekProvider`, `MockProvider` |
 
+## The LLM IPP node (v0.2.8)
+
+The `LLMs/` package is also an **IPP v0.2.8 node** declared in `LLMs/ipp.json`
+with three channels — `chat` · `complete` · `chat_stream` — each an
+independent (Ω, Ξ) pair:
+
+| File | Role |
+|---|---|
+| `ipp.json` | the IPP Json File (𝔉): ports, process descriptions, executor guardrails, edge capabilities |
+| `IPP.py` | `llm_node()` — Γ ⊩ `LLMs/ipp.json` × 𝒢 ↝ the node; `_default_provider()` (live-or-mock) |
+| `IPP_object.py` | the Objects (Ω_k): `make_chat_handler` / `make_complete_handler` / `make_chat_stream_handler` bound by Γ to the provider |
+| `IPP_executor.py` | the Executors (Ξ_k): `LLMExecutor` adds token + latency accounting to the hash-chained audit |
+
+```python
+from LLMs.IPP import llm_node
+from tools.IPP_runtime import verify_node
+
+node = llm_node()                        # live DeepSeek (mock fallback)
+r = node.invoke("chat", [{"role": "user", "content": "hi"}])
+print(r.payload["content"], r.payload["usage"])
+node.executors["chat"].audit_verify()    # hash-chain check
+verify_node(node) or "ALL 17 OK"         # the 17 invariants
+```
+
 ## What it does
 
 - **`DeepSeekProvider`** — wraps the OpenAI SDK against
@@ -44,6 +68,7 @@ offline = MockProvider()          # no key needed
 - `codex_growth/`, `codex_RAG/`, `codex_normal/` — the three agents
 - `ui/server.py`, `ui/gradio_chat.py` — web + chat UI
 - `tools/codex_tools.py` — `tool_spawn_agent` offline fallback
+- `LLMs/IPP.py` — the LLM IPP node channels (`chat` / `complete` / `chat_stream`)
 
 ## Config & credentials
 

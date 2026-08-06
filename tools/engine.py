@@ -27,7 +27,7 @@ from typing import Any, Generator, Optional
 from tools.config import Config
 from tools.encoder import EncoderLayer
 from tools.graph import KnowledgeGraph
-from tools.ipp import IPP, ToolCallEvent, ToolContext, ToolRegistry
+from tools.IPP import IPP, ToolCallEvent, ToolContext, ToolRegistry
 from LLMs.deepseek import DeepSeekProvider
 
 logger = logging.getLogger("tools.engine")

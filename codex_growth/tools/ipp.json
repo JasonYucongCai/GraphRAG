@@ -1,0 +1,196 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "codex_growth_tools",
+  "description": "The GROWTH agent's tool-suite node: invoke (resolve→validate→prepare→invoke lifecycle), list and describe channels over the shared ToolRegistry, restricted to the growth tool set.",
+  "channels": [
+    {
+      "channel_id": "invoke",
+      "handler": "codex_growth.tools.IPP_object:make_invoke_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolInvocation",
+          "description": "{tool: str, args: object}",
+          "schema": {
+            "type": "object",
+            "required": ["tool"],
+            "properties": {
+              "tool": {"type": "string"},
+              "args": {"type": "object"}
+            }
+          }
+        },
+        "process": {
+          "description": "Execute one registered tool through the four-phase lifecycle (resolve → validate → prepare → invoke); return a ToolResult.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{content, ok, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["tool"],
+            "properties": {
+              "tool": {"type": "string"},
+              "args": {"type": "object"}
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 120000,
+          "rate_limit_rps": 0,
+          "security_clearance": "",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/codex_growth_tools.invoke.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 10, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 0 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            { "node_class": "*", "output_logical_type": "ToolInvocation",
+              "edge_count_range": { "min": 0, "max": 16 }, "compatibility": "any" }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 16, "acknowledgment": "required",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "list",
+      "handler": "codex_growth.tools.IPP_object:make_list_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "Empty",
+          "description": "null",
+          "schema": null
+        },
+        "process": {
+          "description": "List the tool names available to this agent.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolNames",
+          "description": "[str]",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 5000,
+          "rate_limit_rps": 0,
+          "security_clearance": "",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "summary",
+          "log_endpoint": "graph_data/logs/ipp/codex_growth_tools.list.jsonl",
+          "chain_of_custody": false
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 10, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 0 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "*", "input_logical_type": "ToolNames",
+              "edge_count_range": { "min": 0, "max": 16 }, "compatibility": "any" }
+          ],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 16, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "describe",
+      "handler": "codex_growth.tools.IPP_object:make_describe_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolRef",
+          "description": "{tool: str}",
+          "schema": null
+        },
+        "process": {
+          "description": "Return the JSON function definition (schema) of one tool.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolDefinition",
+          "description": "the tool's function definition dict",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 5000,
+          "rate_limit_rps": 0,
+          "security_clearance": "",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "summary",
+          "log_endpoint": "graph_data/logs/ipp/codex_growth_tools.describe.jsonl",
+          "chain_of_custody": false
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 10, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 0 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "*", "input_logical_type": "ToolDefinition",
+              "edge_count_range": { "min": 0, "max": 16 }, "compatibility": "any" }
+          ],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 16, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

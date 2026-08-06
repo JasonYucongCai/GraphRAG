@@ -4,8 +4,9 @@ A **self-contained, local-first knowledge-graph platform** that lets LLM agents
 operate on *nodes* through their **depth-3 local graphs**, grow the network
 through a **recursive self-improvement loop**, and persist every node as a
 **living Markdown note** with a version-control log — all unified by the
-**Information Processing Protocol (IPP)**: `IPP = (Input, Φ, Output)` with
-compositional closure.
+**Information Process Protocol v0.2.8**: every component is a declared IPP
+node (Json File 𝔉 → Constructor Γ → Objects Ω + Executors Ξ) with the 17
+design invariants, guardrail envelopes and hash-chained audits.
 
 ![stack](https://img.shields.io/badge/stack-Python%20%7C%20Flask%20%7C%20DeepSeek-4cc2ff)
 ![license](https://img.shields.io/badge/license-MIT-green)
@@ -20,11 +21,11 @@ compositional closure.
 | 🌐 **Global graph** | typed, directed knowledge graph with §4.3a bidirectional consistency, backward compatible with the ScientificInfrastructure folder format |
 | 🎯 **Local graphs (depth-3)** | every agent task is grounded in the node's depth-3 ego network — bounded working memory, no lost-in-the-middle |
 | 🧠 **Encoder layer** | vector-based RAG extraction into nodes (chunk → embed → index → hybrid search) |
-| 🤖 **DeepSeek agent** | OpenAI-compatible Chat Completions agent with an 18-tool IPP suite (four-phase tool lifecycle) |
+| 🤖 **DeepSeek agent** | OpenAI-compatible Chat Completions agent with a 26-tool IPP suite (four-phase tool lifecycle) |
 | 🌱 **Recursive self-improvement** | external expansion + internal self-evolving (consolidation, graph reasoning, reorganization) + exploration, with dedup & per-run limits |
 | 🗄️ **Note database** | every node = a `.md` file with YAML front-matter, `[[wikilinks]]`, and a **Version Control Log** at the bottom — knowledge accumulates and grows |
 | 🖥️ **Web control center** | Flask + vanilla-JS SPA at `127.0.0.3:8000`: draggable SVG graph, PyVis-style interactive view, Mermaid flowcharts, vector search, agent console, note editor |
-| 🧩 **IPP abstraction** | every component is an information processor; `B∘A` is an IPP (compositional closure) |
+| 🧩 **IPP v0.2.8 runtime** | every component is an IPP node: Json File (𝔉) → Constructor (Γ) → n Objects (Ω) + n Executors (Ξ), 17 invariants, hash-chained audits, internal pipeline edges |
 
 ---
 
@@ -41,24 +42,79 @@ compositional closure.
 │ Layer 2   Encoder layer (vector RAG) tools/encoder.py          │
 │ Layer 3   DeepSeek agent (IPP loop)  tools/engine.py · tools/graph_tools.py · LLMs/deepseek/provider.py
 │ Layer 4   Growth & self-improvement  tools/agents.py           │
+│ IPP v0.2.8 Every component is an IPP node (F · Γ · Ω · Ξ)      ipp/ · */ipp.json
 │ Extras    Note database · visuals    database/notes.py · ui/visuals.py │
 └────────────────────────────────────────────────────────────────┘
 ```
 
 ```
 Repo layout:
+├── ipp/                    ← IPP v0.2.8 runtime (MAIN package): IPP_file (F), IPP_ports,
+│                              IPP_object (Ω), IPP_executor (Ξ), IPP_constructor (Γ),
+│                              IPP_registry (𝒢), IPP_verify (17 invariants)
 ├── tools/                  ← SHARED runtime + tool suite: graph, encoder, IPP, engine,
 │                              agents, build, config + codex 19 tools + audit tools
-├── codex_growth/           ← GROWTH agent: improves .md notes, expands the network
-├── codex_RAG/              ← RAG agent: operates & understands the network, outputs info
-├── codex_normal/           ← general-purpose codex agent (chat with it — Gradio)
-├── LLMs/                   ← LLM backends (llm.py provider, grok) + .env credentials
+│                              (+ build_cy3.py · IPP_runtime.py)
+├── codex_growth/           ← GROWTH agent: engine/ + tools/ packages, each with its
+│                              own ipp.json + IPP_object.py + IPP_executor.py
+├── codex_RAG/              ← RAG agent: engine/ + tools/ IPP packages
+├── codex_normal/           ← general agent: engine/ + tools/ IPP packages
+├── LLMs/                   ← LLM backends + LLMs/ipp.json (llm node: chat · complete · chat_stream)
 ├── ui/                     ← Flask control center + Gradio chat + visuals.py
 ├── database/               ← note projects + notes.py store + database_tool/ (MUTATION tools)
-├── graph_data/             ← generated: knowledge_graph.json, vectors/, export/
+├── graph_data/             ← generated: knowledge_graph.json, vectors/, export/, cy3/
 ├── assets/                 ← source materials (papers, extractions, notebooks, archive/)
 ├── requirements.txt        ← pinned deps with license audit (see §Licensing)
 └── *.ipynb                 ← design + build & agents demo notebooks
+```
+
+---
+
+## ⬡ IPP v0.2.8 — the Information Process Protocol runtime
+
+The project is declared and executed through the **IPP v0.2.8** formal model
+(`IPP_v0.2.8_Specification.md`). Every computational component is an **IPP
+node**: a static **Json File** (𝔉) declared in its folder, constructed by the
+**Constructor** Γ into 2n+1 independent runtime peers — n **Objects** Ω
+(computation) + n **Executors** Ξ (guardrails & topology) + Γ (dormant).
+
+| Component | Where | Role |
+|---|---|---|
+| 𝔉 — IPP Json File | `LLMs/ipp.json`, `codex_*/engine/ipp.json`, `codex_*/tools/ipp.json` | declarative channels + internal topology |
+| 𝒢 — Graph Context | `ipp/IPP_registry.py` | deployment registry, candidates, supervisor intent |
+| Γ — Constructor | `ipp/IPP_constructor.py` | 7-step protocol: build Ω, configure Ξ, resolve external τ*, wire internal edges |
+| Ω — Object | `ipp/IPP_object.py` + per-folder `IPP_object.py` | handler H_k, ports Π=Φ×A×T, lifecycle FSM, state |
+| Ξ — Executor | `ipp/IPP_executor.py` + per-folder `IPP_executor.py` | guardrail envelope ι→π→Ω→ι→ρ→τ*, hash-chained audit, internal flow control |
+| ✓ — Verify | `ipp/IPP_verify.py` · `tools/IPP_runtime.py` | the **17 invariants** (I1–I17) |
+
+```
+LLMs/ipp.json ──► Γ ──► llm node         (chat · complete · chat_stream)
+codex_X/engine/ipp.json ──► Γ ──► engine node (ground → chat internal blocking edge)
+codex_X/tools/ipp.json ──► Γ ──► tools node   (invoke · list · describe)
+```
+
+**Guardrail envelope** (Axiom X1, no bypass): `ι_pre → π → [Ω.execute] →
+ι_post → ρ → τ*_dispatch` — integrity hash, policy, handler, output hash,
+hash-chained provenance (`audit_verify()`), edge dispatch with flow control
+(`blocking` / `non_blocking` / `callback`). Internal edges carry payload
+copies only — never state (I17). External topology is capability-space-
+resolved against 𝒢 at construction (never declared in the file, I9) and
+mutates only through recall (X6).
+
+```python
+from LLMs.IPP import llm_node
+from tools.IPP_runtime import verify_node
+
+node = llm_node()                          # Γ constructs the llm node
+r = node.invoke('chat', [{'role': 'user', 'content': 'Reply: OK'}])
+node.executors['chat'].audit_verify()      # hash chain
+verify_node(node) or 'ALL 17 OK'           # the 17 invariants
+
+# the codex agents build the same way (engine + tools + llm nodes):
+from codex_growth import create_agent
+agent = create_agent(graph, encoder, llm=llm)
+agent.node.invoke('ground', {'task': '…', 'node_id': 'agent_memory'})
+#   ↳ internal edge ground → chat (blocking) runs the grounded agent loop
 ```
 
 ---
@@ -81,6 +137,9 @@ g, e = build_graph(); print(g.summary())"
 
 # 4. run the web control center → http://127.0.0.3:8000
 python ui/server.py
+
+# 5. (optional) verify the IPP v0.2.8 nodes — all 17 invariants
+python verify_ipp.py       # → ALL IPP VERIFICATIONS PASSED
 ```
 
 Programmatic use:
@@ -120,13 +179,36 @@ database/
                               • ## Links  →  `relation → [[Target]]`
                               • ## Version Control Log  (appended at the bottom)
     interactive.html        ← exported PyVis-style graph (auto-generated)
-    assets/                 ← per-project attachments
+    assets/                 ← per-project attachments + node ↔ file manifest
+      manifest.json         ← node_id → files: {role, path, size, sha256}
+      README.md             ← human-readable node ↔ file table
+      papers/ extracted/ datasets/ …  ← the actual files, copied per role
 ```
 
 Every save bumps the version and appends a **Version Control Log** entry
 (§4.4a of the ScientificInfrastructure spec) — so each node's history is
 auditable and the knowledge "grows" like a living document. The graph ⇄ notes
 sync is bidirectional (`NoteStore.sync_from_graph` / `load_to_graph`).
+
+**Assets & provenance:** every non-Markdown file a node references (paper PDFs,
+pypdf extractions, dataset files, research documents) is **copied into the
+project's `assets/` folder** organized by role, and the **node → file
+relationship** is recorded in `assets/manifest.json` — which node corresponds
+to which file, with role, project-relative path, size and sha256. The notes'
+`## Content` references those project-relative paths (portable, self-
+contained).
+
+**Example project — `database/calabiyau3fold/`:** the Calabi–Yau threefold
+landscape (converted 2026-08-07 from `assets/20260806 CalabiYau3fold/`,
+notebook `20260807 CalabiYau3fold Graph Network.ipynb`): 95+ notes (the seven
+Hodge totals 17/28/29/66/80/81/92 with verified verdicts, famous manifolds,
+constructions, papers, datasets), 55 asset files across `papers/ extracted/
+datasets/ research/`, and a manifest mapping 31 nodes to their files. Serve it
+with:
+
+```bash
+python ui/server.py --graph graph_data/cy3   # → http://127.0.0.3:8000
+```
 
 ---
 
@@ -136,15 +218,19 @@ sync is bidirectional (`NoteStore.sync_from_graph` / `load_to_graph`).
 |---|---|---|---|
 | **`codex_growth`** | GROWS the network — improves node `.md` notes by considering new analysis/info (web search, file read), adds new edges, updates & adds new nodes | graph read + **database mutations** + web/file | `python ui/gradio_chat.py --agent codex_growth` |
 | **`codex_RAG`** | Operates & understands the network, outputs information (the RAG mission) | retrieval only (local graphs, encoder, node read, summarize) | `python ui/gradio_chat.py --agent codex_RAG` |
-| **`codex_normal`** | The usual codex agent — does general tasks | the full 19-tool suite | `python codex_normal/chat.py` |
+| **`codex_normal`** | The usual codex agent — does general tasks | the full 19-tool suite | `python ui/gradio_chat.py --agent codex_normal` |
 
-All three **share** `tools/` (the common tool suite composed of the original codex tools + graph tools) and `LLMs/`, and each has its own **per-agent tool folder** (`<agent>/tools/`, initially empty, populated as it evolves) plus an editable **`system_prompt.md`** with project-structure awareness and purpose-tailored instructions. The structure follows IPP: every tool and agent is an information processor `(Input, Φ, Output)`.
+All three **share** `tools/` (the common tool suite composed of the original
+codex tools + graph tools) and `LLMs/`, and each is an **IPP v0.2.8 node**: an
+`engine/` package and a `tools/` package, each with its own `ipp.json` +
+`IPP_object.py` + `IPP_executor.py` (constructed by Γ into Ω/Ξ peers), plus an
+editable `system_prompt.md` with project-structure awareness and purpose-
+tailored instructions.
 
 ### Traditional chat (Gradio)
 
 ```bash
-python codex_normal/chat.py        # → http://127.0.0.3:7860 (general agent)
-python ui/gradio_chat.py           # → http://127.0.0.3:7860 (pick any agent)
+python ui/gradio_chat.py            # → http://127.0.0.3:7860 (pick any agent; default codex_normal)
 ```
 
 ## 🖥️ Web UI
@@ -242,13 +328,83 @@ Local IPP architecture analyses that inspired the agent design.
 - `20260802 Graph Knowledge Network for Agentic Work.md.ipynb` — the design
   document (markdown-only, one `##` section per cell).
 - `20260802 Graph Network Build & Agents.ipynb` — executable build + agents
-  demo (kernel: `agentic_ai`).
+  demo (kernel: `agentic_ai` / `agenti_ai`).
+- `20260807 CalabiYau3fold Graph Network.ipynb` — Calabi–Yau threefold
+  conversion: datasets, graph build, agents, note database + asset manifest
+  (kernel: `agenti_ai`).
 
 ---
 
 ## 📜 Version Log
 
 Per ScientificInfrastructure §4.4a, this README tracks its own revisions.
+
+### v0.1.1 — 2026-08-07 (IPP naming convention + cleanup)
+
+- **IPP modules renamed to `IPP_*.py`** everywhere for one consistent
+  convention: `ipp/IPP_file.py`, `ipp/IPP_ports.py`, `ipp/IPP_object.py`,
+  `ipp/IPP_executor.py`, `ipp/IPP_constructor.py`, `ipp/IPP_registry.py`,
+  `ipp/IPP_verify.py`; `LLMs/IPP.py` (`llm_node`), `LLMs/IPP_object.py`,
+  `LLMs/IPP_executor.py`; per-agent `codex_*/engine/IPP_object.py` +
+  `IPP_executor.py` and `codex_*/tools/IPP_object.py` + `IPP_executor.py`;
+  `tools/IPP.py` (legacy IPP v0.1 + ToolRegistry) and `tools/IPP_runtime.py`
+  (`verify_node`). All `ipp.json` handler refs, imports and docs updated.
+- **`codex_normal/chat.py` removed** — redundant legacy wrapper; all three
+  agents launch uniformly via `python ui/gradio_chat.py [--agent …]`.
+- **Interactive plot click → detail drawer**: clicking a node in the
+  PyVis-style Interactive view now opens the right-hand detail drawer via
+  `postMessage` (no more `alert()` popup); hover tooltips added.
+- **Encoder index fix**: `graph_data/cy3/vectors/index.json` was empty after
+  a rebuild — regenerated (2,295 chunks) so vector search works again.
+
+### v0.1.0 — 2026-08-07 (IPP v0.2.8 full rewrite)
+
+- **New main package `ipp/`** — the IPP v0.2.8 runtime: `IPP_file.py` (𝔉
+  validation, R1–R4, I1), `IPP_ports.py` (Π = Φ×A×T, ten-layer Envelope),
+  `IPP_object.py` (Ω lifecycle FSM), `IPP_executor.py` (Ξ guardrail envelope +
+  hash-chained audit + internal flow control), `IPP_constructor.py` (Γ 7-step
+  protocol + recall), `IPP_registry.py` (𝒢), `IPP_verify.py` (17 invariants).
+- **Every component is now an IPP node with its own Json File, object and
+  executor**: `LLMs/ipp.json` (llm node: chat · complete · chat_stream),
+  `codex_*/engine/ipp.json` (engine node: ground → chat internal **blocking
+  pipeline edge**), `codex_*/tools/ipp.json` (tools node: invoke · list ·
+  describe). Public API: `LLMs.IPP.llm_node()`,
+  `tools.IPP_runtime.verify_node()`.
+- **`codex_growth` / `codex_RAG` / `codex_normal` reorganized** — each now
+  has an `engine/` package and a `tools/` package (each with its own
+  `ipp.json` + `IPP_object.py` + `IPP_executor.py`); `create_agent()`
+  constructs the engine/tools/LLM nodes through Γ and attaches `engine.node`.
+  The returned engines keep the full AgentEngine surface (`run_with_trace`,
+  `chat_stream`, `bind_node`) — UI and Gradio unchanged.
+- **Verified end-to-end** (`verify_ipp.py`): live DeepSeek chat/complete/
+  stream through the llm node; tool list/describe/invoke through the tools
+  nodes; the ground→chat internal pipeline (audit records the `internal`
+  traversal); constructor-resolved external topology (engine.chat upstream =
+  llm, downstream = tools); **ALL 17 invariants pass on every node**;
+  server + live API chat regression-tested.
+
+### v0.0.5 — 2026-08-07 (Calabi–Yau threefold graph project)
+
+- **New `tools/build_cy3.py`** — seeds a 95+ node / 140+ edge knowledge graph
+  from `assets/20260806 CalabiYau3fold/ResearchReferences/` (40 papers, 24
+  concepts, 5 datasets, the seven target totals 17/28/29/66/80/81/92 with
+  verified verdicts, 16 famous Hodge pairs), with ~2,300 encoder chunks from
+  the 20 pypdf extractions. Persists to `graph_data/cy3/` (default GraphRAG
+  graph untouched); rebuilds are idempotent and **preserve grown nodes**.
+- **New notebook** `20260807 CalabiYau3fold Graph Network.ipynb` — dataset
+  loading with fixed paths, headline statistics, graph build, local graphs,
+  vector RAG, NodeAgent + GrowthAgent demos, backward-compatible export.
+- **`ui/server.py --graph DIR`** — serve any custom graph folder
+  (`knowledge_graph.json` + `vectors/index.json`); the rebuild button
+  respects the custom graph.
+- **Note database project `database/calabiyau3fold/`** — one `.md` note per
+  node (YAML front-matter, `[[wikilinks]]`, VCL), plus **project `assets/`
+  with a `manifest.json` node → file mapping** (role, path, size, sha256):
+  all 55 referenced files (papers/extracted/datasets/research) copied into
+  the project, notes referencing project-relative paths. The Database tab
+  opens it by default.
+- Research verdicts (17/28/66/81 special · 29 mild · 80 generic · 92
+  notable-but-general) encoded into the total-node descriptions.
 
 ### v0.0.4 — 2026-08-02 (LLMs/deepseek subfolder)
 

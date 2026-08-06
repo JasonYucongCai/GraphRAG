@@ -90,19 +90,39 @@ def _make_provider() -> DeepSeekProvider:
         return MockProvider()
 
 
-def _load_or_build() -> None:
-    """Load the persisted graph if present, else build from assets."""
+def _load_or_build(graph_dir: Optional[Path] = None) -> None:
+    """Load the persisted graph if present, else build from assets.
+
+    ``graph_dir``: serve a custom graph folder (e.g. ``graph_data/cy3``)
+    containing ``knowledge_graph.json`` + ``vectors/index.json``. When set,
+    the note-project merge is skipped (note projects belong to the default
+    GraphRAG graph).
+    """
     global graph, encoder, provider, node_agent, growth_agent, store, codex_agents
     with _lock:
-        graph = KnowledgeGraph()
-        encoder = EncoderLayer()
-        if graph.path.exists() and (Config.VECTOR_DIR / "index.json").exists():
-            logger.info("loading persisted graph from %s", graph.path)
-            graph.load()
-            encoder.load()
+        if graph_dir is not None:
+            gpath = graph_dir / "knowledge_graph.json"
+            vpath = graph_dir / "vectors" / "index.json"
+            graph = KnowledgeGraph(path=gpath, auto_load=False)
+            encoder = EncoderLayer()
+            if gpath.exists() and vpath.exists():
+                logger.info("loading custom graph from %s", graph_dir)
+                graph.load()
+                encoder.load(vpath)
+            else:
+                logger.info("building custom graph into %s", graph_dir)
+                from tools.build_cy3 import build_cy3_graph
+                graph, encoder = build_cy3_graph(out_dir=graph_dir)
         else:
-            logger.info("building graph from assets/")
-            graph, encoder = build_graph()
+            graph = KnowledgeGraph()
+            encoder = EncoderLayer()
+            if graph.path.exists() and (Config.VECTOR_DIR / "index.json").exists():
+                logger.info("loading persisted graph from %s", graph.path)
+                graph.load()
+                encoder.load()
+            else:
+                logger.info("building graph from assets/")
+                graph, encoder = build_graph()
         graph.pagerank()
         ensure_tools()
         provider = _make_provider()
@@ -111,13 +131,17 @@ def _load_or_build() -> None:
         store = NoteStore()
         # chat surface = READ-ONLY agents (file-write + mutation tools disabled)
         codex_agents = _make_codex_agents(provider, store, chat_mode=True)
-        # auto-reopen the last-active note project (create-and-open UX)
+        # auto-reopen the last-active note project (create-and-open UX).
+        # In custom-graph mode we still open the note project (so the Database
+        # tab shows its notes) but skip the graph ⇄ notes merge (the custom
+        # graph is already the authoritative source).
         active = store.active_project()
         if active:
             try:
                 store.open_project(active)
-                store.load_to_graph(graph)
-                graph.pagerank()
+                if graph_dir is None:
+                    store.load_to_graph(graph)
+                    graph.pagerank()
                 logger.info("note project re-opened: %s", active)
             except ValueError:
                 logger.warning("active project %s not found; starting fresh", active)
@@ -153,7 +177,7 @@ def health():
         "assets": str(Config.ASSETS_DIR),
         "provider": provider.name if provider else None,
         "model": Config.get_model(),
-        "tools": [t.tool_name for t in __import__("tools.ipp", fromlist=["ToolRegistry"]).ToolRegistry.all()],
+        "tools": [t.tool_name for t in __import__("tools.IPP", fromlist=["ToolRegistry"]).ToolRegistry.all()],
         "agents": [{"id": a, "tools": len(TOOL_SETS.get(a, []))} for a in AGENT_IDS],
         "graph_file": str(graph.path) if graph else None,
     })
@@ -578,9 +602,13 @@ def db_sync():
 
 @app.post("/api/graph/rebuild")
 def rebuild():
-    global graph, encoder, node_agent, growth_agent, codex_agents
+    global graph, encoder, node_agent, growth_agent, codex_agents, provider
     with _lock:
-        graph, encoder = build_graph()
+        if graph.path != Config.GRAPH_JSON:
+            from tools.build_cy3 import build_cy3_graph
+            graph, encoder = build_cy3_graph(out_dir=graph.path.parent)
+        else:
+            graph, encoder = build_graph()
         graph.pagerank()
         node_agent = NodeAgent(graph, encoder, llm=provider)
         growth_agent = GrowthAgent(graph, encoder, llm=provider)
@@ -599,9 +627,14 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.3", help="bind host (default 127.0.0.3)")
     parser.add_argument("--port", type=int, default=8000, help="bind port (default 8000)")
     parser.add_argument("--debug", action="store_true", help="Flask debug mode")
+    parser.add_argument(
+        "--graph", default=None, metavar="DIR",
+        help="serve a custom graph folder with knowledge_graph.json + "
+             "vectors/index.json (e.g. graph_data/cy3 for the Calabi-Yau graph)",
+    )
     args = parser.parse_args()
 
-    _load_or_build()
+    _load_or_build(Path(args.graph) if args.graph else None)
     logger.info("UI ready → http://%s:%d", args.host, args.port)
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 

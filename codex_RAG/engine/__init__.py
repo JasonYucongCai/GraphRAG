@@ -1,15 +1,15 @@
 """
-codex_growth — the GROWTH agent (IPP).
+codex_RAG.engine — the RETRIEVAL / RAG engine package (IPP v0.2.8 node).
 
-Improves node .md notes by considering new analysis & information (web search,
-file read) and EXPANDS the network — adding new edges, updating and adding new
-nodes — using the mutation tools in database/database_tool.
+    engine = CodexRAGEngine(graph, encoder, llm=..., store=...)
+    node   = construct_engine_node(engine)
 
-Tailored tool set + system prompt (see tools/agent_specs.py). Shares the
-common tools/ and LLMs/ with codex_RAG and codex_normal.
+Channels `ground` / `chat` / `chat_stream`; internal blocking edge
+ground → chat composes the grounded retrieval pipeline.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Optional
 
 from tools.engine import AgentEngine
@@ -18,11 +18,13 @@ from tools.graph import KnowledgeGraph
 from LLMs.deepseek import DeepSeekProvider
 from tools.agent_specs import tool_set, chat_tool_set, system_prompt
 
-AGENT_ID = "codex_growth"
+AGENT_ID = "codex_RAG"
+
+_IPP_JSON = Path(__file__).resolve().parent / "ipp.json"
 
 
-class CodexGrowthEngine(AgentEngine):
-    """The growth engine — bound to the network, growth-tailored prompt."""
+class CodexRAGEngine(AgentEngine):
+    """The RAG engine — retrieval-only, tailored prompt, grounded answers."""
 
     def __init__(self, graph: KnowledgeGraph, encoder: EncoderLayer,
                  llm: Optional[DeepSeekProvider] = None, store: Any = None,
@@ -35,8 +37,10 @@ class CodexGrowthEngine(AgentEngine):
         )
         self.name = AGENT_ID
         self.chat_mode = chat_mode
+        self.node = None               # the IPP node (attached by create_agent)
 
     def _ground(self, task: str, node_id: Any) -> str:
+        """Pre-inject the node's local graph + encoder evidence into the task."""
         anchor = node_id if node_id is not None else self.node_id
         if anchor is None:
             return task
@@ -64,8 +68,25 @@ class CodexGrowthEngine(AgentEngine):
         yield from super().chat_stream(self._ground(task, node_id), node_id=node_id)
 
 
-def create_agent(graph: KnowledgeGraph, encoder: EncoderLayer,
-                 llm: Optional[DeepSeekProvider] = None, store: Any = None,
-                 model: Optional[str] = None, chat_mode: bool = False) -> CodexGrowthEngine:
-    return CodexGrowthEngine(graph, encoder, llm=llm, store=store, model=model,
-                             chat_mode=chat_mode)
+def construct_engine_node(engine: CodexRAGEngine,
+                          context=None, tool_names: Optional[list] = None,
+                          register: bool = True):
+    """Γ ⊩ codex_RAG/engine/ipp.json × 𝒢 ↝ the engine IPP node."""
+    from ipp.IPP_constructor import IPPConstructor
+    from ipp.IPP_registry import GraphContext
+    from codex_RAG.engine.IPP_executor import AgentExecutor
+
+    ctx = context or GraphContext()
+    if "engine" not in ctx.bindings:
+        ctx.bind("engine", engine)
+    if tool_names is None:
+        tool_names = tool_set(AGENT_ID)
+    ctx.bind("tool_names", tool_names)
+    gamma = IPPConstructor(ctx, executor_classes={
+        "ground": AgentExecutor, "chat": AgentExecutor,
+        "chat_stream": AgentExecutor})
+    node = gamma.construct_file(_IPP_JSON, ctx)
+    gamma.recall_scope(node)
+    if register:
+        ctx.register_node(node)
+    return node

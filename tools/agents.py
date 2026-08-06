@@ -22,7 +22,7 @@ from tools.config import Config
 from tools.encoder import EncoderLayer
 from tools.engine import AgentEngine
 from tools.graph import KnowledgeGraph, LocalGraph
-from tools.ipp import IPP, ToolResult
+from tools.IPP import IPP, ToolResult
 
 logger = logging.getLogger("tools.agents")
 
