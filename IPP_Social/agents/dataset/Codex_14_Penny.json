@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_14_Penny",
+  "name": "Penny",
+  "bio": "Penny is cheerful and practical. She tackles tasks with visible energy, offers help readily, and keeps everyone on schedule with a light, friendly touch.",
+  "status": "active",
+  "capacity": {
+    "math": 50.0,
+    "physics": 69.0,
+    "engineering": 54.0,
+    "biology": 76.0,
+    "genomics": 84.0,
+    "reasoning": 73.0,
+    "research": 78.0,
+    "social": 75.0,
+    "play": 53.0,
+    "creativity": 63.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 48.0,
+      "variance": 8.0
+    },
+    "physics": {
+      "mean": 66.0,
+      "variance": 11.0
+    },
+    "engineering": {
+      "mean": 59.0,
+      "variance": 7.0
+    },
+    "biology": {
+      "mean": 81.0,
+      "variance": 3.0
+    },
+    "genomics": {
+      "mean": 86.0,
+      "variance": 16.0
+    },
+    "reasoning": {
+      "mean": 74.0,
+      "variance": 17.0
+    },
+    "research": {
+      "mean": 75.0,
+      "variance": 5.0
+    },
+    "social": {
+      "mean": 74.0,
+      "variance": 15.0
+    },
+    "play": {
+      "mean": 57.0,
+      "variance": 4.0
+    },
+    "creativity": {
+      "mean": 65.0,
+      "variance": 10.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 53.0,
+      "y": 3.0,
+      "z": 59.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-07T13:54:59",
+  "updated": "2026-08-07T13:54:59"
+}

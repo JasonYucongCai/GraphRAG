@@ -88,6 +88,10 @@ class AgentEngine(IPP):
         self._session_tokens: int = 0
         self._turn: Optional[dict] = None
         self.name = f"agent[{node_id}]" if node_id is not None else "agent"
+        # True  → provider.chat_stream (HTTP streaming, per-token deltas)
+        # False → provider.chat (single non-streaming completion) — the
+        #         many-agent default (streaming serializes concurrent agents)
+        self.llm_stream: bool = True
         self.run_limits = {
             "new_subjects": Config.MAX_NEW_SUBJECTS_PER_RUN,
             "new_refs_per_subject": Config.MAX_REFS_PER_SUBJECT_PER_RUN,
@@ -185,27 +189,35 @@ class AgentEngine(IPP):
                     self.messages.append({"role": "user", "content": nudge})
 
             try:
-                # ── STREAMING LLM call: yields thinking/text deltas as they
-                #    arrive, so the UI can render progressively ──────────
-                gen = self.llm.chat_stream(self.messages, tools=tools,
-                                           temperature=Config.TEMPERATURE)
                 content_delta = ""
                 thinking_delta = ""
                 result = None
-                try:
-                    while True:
-                        kind, data = next(gen)
-                        if kind == "thinking":
-                            thinking_delta += data
-                            yield ToolCallEvent(type="thinking", content=data)
-                        elif kind == "text":
-                            content_delta += data
-                            # stream assistant text progressively as a message
-                            yield ToolCallEvent(type="message_delta", content=data)
-                        elif kind == "usage":
-                            pass  # captured at end
-                except StopIteration as e:
-                    result = e.value
+                if getattr(self, "llm_stream", True):
+                    # ── STREAMING LLM call: yields thinking/text deltas as
+                    #    they arrive, so the UI renders progressively ────
+                    gen = self.llm.chat_stream(self.messages, tools=tools,
+                                               temperature=Config.TEMPERATURE)
+                    try:
+                        while True:
+                            kind, data = next(gen)
+                            if kind == "thinking":
+                                thinking_delta += data
+                                yield ToolCallEvent(type="thinking", content=data)
+                            elif kind == "text":
+                                content_delta += data
+                                # stream assistant text progressively
+                                yield ToolCallEvent(type="message_delta", content=data)
+                            elif kind == "usage":
+                                pass  # captured at end
+                    except StopIteration as e:
+                        result = e.value
+                else:
+                    # ── NON-STREAMING LLM call (many-agent default): one
+                    #    completion; full thinking/message events follow ──
+                    result = self.llm.chat(
+                        self.messages, tools=tools,
+                        temperature=Config.TEMPERATURE)
+                    content_delta = result.content or ""
             except Exception as exc:  # noqa: BLE001
                 logger.error("LLM call failed: %s", exc)
                 yield ToolCallEvent(type="error", error=str(exc))

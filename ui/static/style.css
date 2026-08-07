@@ -37,6 +37,18 @@ body {
 .brand h1 { font-size: 16px; font-weight: 600; }
 .sub { color: var(--muted); font-size: 11px; }
 .top-actions { display: flex; gap: 8px; align-items: center; }
+
+/* top-level view nav (Control Center ⇄ Multi Agent) */
+#topnav { display: flex; gap: 6px; margin: 0 16px; }
+.topnav-tab {
+  padding: 6px 16px; border-radius: 18px; cursor: pointer;
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  font-weight: 600; font-size: 12px; transition: all .15s;
+}
+.topnav-tab:hover { color: var(--text); border-color: var(--text); }
+.topnav-tab.active {
+  color: var(--accent); border-color: var(--accent); background: var(--bg3);
+}
 .badge {
   background: var(--bg3); border: 1px solid var(--border);
   padding: 3px 10px; border-radius: 20px; font-family: var(--mono); font-size: 11px;
@@ -268,3 +280,250 @@ h3 { font-size: 12px; margin: 14px 0 8px; color: var(--accent); text-transform: 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ══════════════════════════════════════════════════════════════════
+   Multi Agent portal (social network / strict IPP)
+   ══════════════════════════════════════════════════════════════════ */
+.brand-title {
+  font-size: 16px; font-weight: 600; color: var(--text);
+  text-decoration: none; cursor: pointer;
+  border-bottom: 1px dashed transparent; transition: all .15s;
+}
+.brand-title:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+.btn.danger { color: var(--red); border-color: var(--red); }
+.btn.danger:hover { background: rgba(239, 83, 80, .12); }
+.ma-setting-row { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.ma-setting-row input { accent-color: var(--accent); width: auto; }
+.grow { flex: 1; min-width: 0; }
+
+/* agent pick — pill toggles */
+.ma-agent-pick {
+  max-height: 200px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px; display: flex; flex-wrap: wrap; gap: 5px;
+}
+.ma-pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px;
+  border-radius: 14px; cursor: pointer; font-size: 11px; font-weight: 600;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+  transition: all .12s;
+}
+.ma-pill:hover { border-color: var(--accent); }
+.ma-pill.selected { border-color: var(--accent); color: var(--accent); background: rgba(76, 194, 255, .12); }
+.ma-pill-check { opacity: 0; width: 0; color: var(--accent); }
+.ma-pill.selected .ma-pill-check { opacity: 1; width: auto; }
+#ma-pick-count { font-size: 10px; }
+#ma-pick-all, #ma-pick-none { font-size: 10px; padding: 2px 8px; }
+
+#ma-resume-wrap { margin: 6px 0; }
+.ma-goals-title { margin: 12px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.ma-goal-list { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.ma-goal-item {
+  display: flex; gap: 8px; align-items: center; padding: 5px 8px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+  cursor: pointer; font-size: 11px; text-align: left; color: var(--text);
+  transition: all .12s;
+}
+.ma-goal-item:hover { border-color: var(--accent); }
+.ma-goal-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ma-goal-meta { margin-left: auto; color: var(--muted); flex: none; font-size: 10px; }
+.ma-goal-open { color: var(--accent); flex: none; font-size: 10px; }
+.ma-goal-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--muted); }
+.ma-goal-dot.open { background: var(--green); }
+.ma-goal-dot.archived { background: var(--muted); }
+.ma-goal-dot.completed { background: var(--green); }
+.ma-goal-dot.processing { background: var(--accent); }
+.ma-goal-dot.failed { background: var(--red); }
+
+.ma-goal-detail {
+  margin-top: 8px; padding: 8px; background: var(--bg2);
+  border: 1px solid var(--accent); border-radius: 8px;
+}
+#ma-goal-detail-head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.ma-goal-status { font-size: 10px; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; margin-left: auto; }
+.ma-goal-tasks-list { max-height: 140px; overflow-y: auto; margin-bottom: 8px; }
+.ma-goal-task {
+  display: flex; gap: 8px; align-items: baseline; padding: 3px 4px;
+  border-bottom: 1px dashed var(--border); font-size: 11px;
+}
+.ma-goal-task-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ma-goal-task-meta { margin-left: auto; color: var(--muted); flex: none; font-size: 10px; }
+.muted { color: var(--muted); }
+
+/* stage (main canvas) */
+#ma-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px 14px; overflow: hidden; }
+#ma-stage-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+#ma-stage-toolbar h3 { margin: 0; }
+
+.ma-boxes {
+  display: grid; grid-template-columns: 1fr; gap: 6px;
+  overflow-y: auto; max-height: none; padding-right: 2px;
+}
+.ma-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 9px; display: flex; flex-direction: column; gap: 3px;
+  transition: border-color .15s; cursor: pointer;
+}
+.ma-box:hover { border-color: var(--accent); }
+.ma-box.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ma-box.running { border-color: var(--accent); }
+.ma-box-head { display: flex; align-items: center; gap: 8px; }
+.ma-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-weight: 700; font-size: 12px; flex: none;
+}
+.ma-box-title { display: flex; flex-direction: column; min-width: 0; }
+.ma-box-id { color: var(--muted); font-family: var(--mono); font-size: 9px; }
+.ma-box-status {
+  margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; flex: none;
+}
+.ma-box-status.running { color: var(--accent); border-color: var(--accent); }
+.ma-box-status.done { color: var(--green); border-color: var(--green); }
+.ma-box-status.error { color: var(--red); border-color: var(--red); }
+.ma-box-activity {
+  color: var(--text); font-size: 11px; line-height: 1.3; min-height: 14px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ma-box-activity.running { color: var(--accent); }
+
+/* sidebar sub-tabs (Agent Stage | Many Agents) */
+.ma-subnav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.ma-subtab {
+  flex: 1; padding: 7px 0; background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 12px; font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+.ma-subtab:hover { color: var(--text); }
+.ma-subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.ma-subpane { display: none; }
+.ma-subpane.active { display: block; }
+
+/* stage (main canvas) */
+#ma-stage { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 10px 14px; overflow: hidden; }
+#ma-stage-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+#ma-stage-toolbar h3 { margin: 0; }
+
+/* right panel nav (Agent Process | Inter Agent Chat | Global Chat Board) */
+.ma-rightnav { display: flex; gap: 6px; margin-bottom: 8px; }
+.ma-rtab {
+  padding: 5px 14px; border-radius: 14px; cursor: pointer;
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  font-weight: 600; font-size: 11px; transition: all .15s;
+}
+.ma-rtab:hover { color: var(--text); border-color: var(--text); }
+.ma-rtab.active { color: var(--accent); border-color: var(--accent); background: var(--bg3); }
+.ma-rpane { display: none; flex-direction: column; min-height: 0; flex: 1; }
+.ma-rpane.active { display: flex; }
+
+/* the selected agent's process log */
+.ma-process-head {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 8px 8px 0 0;
+}
+.ma-process-status {
+  margin-left: auto; font-size: 10px; text-transform: uppercase;
+  color: var(--muted); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px;
+}
+.ma-process-status.running { color: var(--accent); border-color: var(--accent); }
+.ma-process-status.done { color: var(--green); border-color: var(--green); }
+.ma-process-status.error { color: var(--red); border-color: var(--red); }
+.ma-process-log {
+  flex: 1; overflow-y: auto; background: var(--bg2);
+  border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px;
+  padding: 8px 12px; font-family: var(--mono); font-size: 11px; line-height: 1.5; min-height: 0;
+}
+.ma-proc { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; border-bottom: 1px dashed #1d2831; }
+.ma-proc-time { color: var(--muted); flex: none; }
+.ma-proc.done { color: var(--green); }
+.ma-proc.error { color: var(--red); }
+.ma-proc.turn {
+  color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+  border-bottom: none; margin-top: 8px; padding-left: 2px;
+}
+
+/* the user's chat instruction */
+.ma-proc-task {
+  padding: 6px 12px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 8px; font-size: 12px; color: var(--text);
+}
+
+/* the ENTIRE agentic process — one foldable block (ChatGPT/Copilot style) */
+.ma-proc-fold {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg2);
+  margin-bottom: 10px;
+}
+.ma-proc-fold > summary {
+  padding: 8px 12px; cursor: pointer; font-weight: 600; color: var(--accent);
+  font-size: 12px; user-select: none; border-radius: 8px;
+}
+.ma-proc-fold > summary:hover { background: var(--bg3); }
+.ma-proc-steps { padding: 6px 10px; }
+
+/* individual foldable steps: thinking / message / tool(+result) */
+.ma-step {
+  border: 1px solid var(--border); border-radius: 6px; margin: 5px 0;
+  background: var(--bg); overflow: hidden;
+}
+.ma-step > summary {
+  padding: 5px 10px; cursor: pointer; font-size: 11px; user-select: none;
+  display: flex; gap: 8px; align-items: baseline;
+}
+.ma-step > summary:hover { background: var(--bg3); }
+.ma-think > summary { color: var(--orange); }
+.ma-msg > summary { color: var(--blue); }
+.ma-tool > summary { color: var(--purple); }
+.ma-tool-args {
+  color: var(--muted); font-family: var(--mono); font-size: 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%;
+}
+.ma-step-body {
+  padding: 6px 10px; border-top: 1px dashed var(--border); font-size: 11px;
+  white-space: pre-wrap; word-break: break-word; font-family: var(--mono);
+  line-height: 1.5; margin: 0; max-height: 320px; overflow-y: auto;
+}
+.ma-step-body .md { font-family: "Segoe UI", system-ui, sans-serif; white-space: normal; }
+.ma-step-body .md pre { font-family: var(--mono); background: var(--bg3); padding: 6px; border-radius: 4px; overflow-x: auto; }
+.ma-proc-result { color: var(--muted); font-family: var(--mono); font-size: 10px; margin-bottom: 4px; }
+.ma-result-body {
+  padding: 4px 8px; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 4px; font-family: var(--mono); font-size: 10px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word; max-height: 220px; overflow-y: auto;
+}
+
+/* the FINAL answer — full text, below the fold */
+.ma-final {
+  border: 1px solid var(--green); border-radius: 8px; background: var(--bg2);
+  margin-top: 4px;
+}
+.ma-final-title {
+  padding: 6px 12px; font-weight: 600; color: var(--green); font-size: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+.ma-final-body { padding: 8px 12px; font-size: 12px; line-height: 1.6; color: var(--text); }
+.ma-final-body .md pre {
+  font-family: var(--mono); background: var(--bg3); padding: 8px; border-radius: 4px;
+  overflow-x: auto; font-size: 11px;
+}
+
+/* chat panels (addressing-aware) */
+.ma-chat-log {
+  flex: 1; overflow-y: auto; font-size: 11px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  font-family: var(--mono); line-height: 1.5; min-height: 0;
+}
+.ma-chat-msg {
+  display: flex; gap: 8px; align-items: baseline; padding: 2px 0;
+  border-bottom: 1px dashed #1d2831; flex-wrap: wrap;
+}
+.ma-chat-time { color: var(--muted); flex: none; }
+.ma-chat-agent { color: var(--accent); font-weight: 600; flex: none; }
+.ma-chat-user { color: var(--green); font-weight: 600; flex: none; }
+.ma-chat-addr { color: var(--muted); flex: none; }
+.ma-chat-addr b { color: var(--purple); font-weight: 600; }
+.ma-chat-text { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 120px; }
+.ma-chat-tags { flex: none; }
+.ma-chat-tag { color: var(--purple); font-size: 10px; margin-left: 4px; }
+
+/* (the .ma-boxes / .ma-box styles above are the one-column compact set) */
+.ma-box .ma-box-status.idle { color: var(--muted); border-color: var(--border); }

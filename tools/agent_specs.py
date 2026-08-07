@@ -44,6 +44,11 @@ _KNOWLEDGE = [
 _AUDIT = [
     "review_top_threats", "standard_check", "advanced_check",
 ]
+_SOCIAL = [   # the IPP_Social layer — agents discover it by default
+    "social_post", "social_board", "social_agents", "social_goals",
+    "social_create_goal", "social_create_task", "social_update_task",
+    "social_get_task",
+]
 
 # ── per-agent tool sets (each agent sees only its own surface) ───────────────
 TOOL_SETS: dict[str, list[str]] = {
@@ -52,7 +57,7 @@ TOOL_SETS: dict[str, list[str]] = {
         "shell_command", "memory_read", "memory_write", "current_time", "plan",
     ],
     "codex_RAG": _KNOWLEDGE,           # retrieval + understanding only
-    "codex_normal": _CORE + _AUDIT,    # the full general-purpose suite + audits
+    "codex_normal": _CORE + _AUDIT + _SOCIAL,   # general suite + audits + social
 }
 
 DEFAULT_AGENT = "codex_normal"

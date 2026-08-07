@@ -60,6 +60,12 @@ def ensure_tools() -> None:
     _ensure_graph_tools()
     _ensure_db_tools()
     _ensure_check_tools()
+    # the social tools (IPP_Social) — agents discover the social layer
+    try:
+        from IPP_Social.agent_tools import ensure_social_tools
+        ensure_social_tools()
+    except ImportError as exc:  # noqa: BLE001
+        logger.debug("social tools not loaded: %s", exc)
 
 
 def all_definitions(round_index: int = 1) -> list[dict]:

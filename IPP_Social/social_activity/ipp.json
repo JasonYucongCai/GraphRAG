@@ -1,0 +1,418 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "social_activity",
+  "description": "The plug-and-play social layer: agent cards with capacity / random-property / constraints vectors, shared goal-task folders, a global chat board, a streaming event bus, and the four formal A2A interaction modes (sync declared-but-disabled; async + stream enabled; push scoped to the chat board).",
+  "channels": [
+    {
+      "channel_id": "card",
+      "handler": "IPP_Social.social_activity.IPP_object:make_card_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SocialOp",
+          "description": "{op: register|get|list|comment, ...} — register an agent card, discover cards, annotate another agent's card",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["register", "get", "list", "comment"] },
+              "agent_id": { "type": "string" },
+              "target_agent_id": { "type": "string" },
+              "author_id": { "type": "string" },
+              "text": { "type": "string" },
+              "overwrite": { "type": "boolean" }
+            }
+          }
+        },
+        "process": {
+          "description": "Register an agent (capacity 10-dim identity, random property 10-dim mean/variance, constraints), discover via the Agent Card, or leave a comment on another agent's card.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "AgentCard",
+          "description": "an AgentCard, a list of AgentCards, or {ok:false, error:...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "social",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_activity.card.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "profile",
+      "handler": "IPP_Social.social_activity.IPP_object:make_profile_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SocialOp",
+          "description": "{op: get|update_constraints, agent_id, constraints?} — read the 3-property profile or move the physical constraint vector",
+          "schema": {
+            "type": "object",
+            "required": ["op", "agent_id"],
+            "properties": {
+              "op": { "enum": ["get", "update_constraints"] },
+              "agent_id": { "type": "string" },
+              "constraints": { "type": "object" }
+            }
+          }
+        },
+        "process": {
+          "description": "Return capacity + random property + constraints, or validate and apply a constraints update against the physical rules (world bounds, max step, non-negative resources).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "AgentProfile",
+          "description": "{capacity, random_property, constraints} or {ok:false, error:...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op", "agent_id"],
+            "properties": {
+              "op": { "type": "string" },
+              "agent_id": { "type": "string" }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "social",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_activity.profile.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "tasks",
+      "handler": "IPP_Social.social_activity.IPP_object:make_tasks_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SocialOp",
+          "description": "{op: create_goal|list_goals|get_goal|delete_goal|create_task|update_task|get_task|list_tasks, goal_id?, task_id?, ...} — shared goal/task management",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["create_goal", "list_goals", "get_goal", "delete_goal", "create_task", "update_task", "get_task", "list_tasks"] },
+              "goal_id": { "type": "string" },
+              "task_id": { "type": "string" },
+              "status": { "type": "string" },
+              "assignee_agent_id": { "type": "string" }
+            }
+          }
+        },
+        "process": {
+          "description": "A goal is a folder whose individual tasks are Markdown files (Version Control Log at the bottom). Any agent may create goals, create tasks, update status/notes/assignee — collaboration toward the goal.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "GoalTask",
+          "description": "a Goal, a Task, a list, or {ok:false, error:...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "social",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_activity.tasks.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "chat_board",
+      "handler": "IPP_Social.social_activity.IPP_object:make_chat_board_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SocialOp",
+          "description": "{op: post|get|get_since|clear, author_agent_id, text?, tags?, to_agent_id?, scope?, limit?, after_id?} — the global chat board",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["post", "get", "get_since", "clear"] },
+              "author_agent_id": { "type": "string" },
+              "text": { "type": "string" },
+              "to_agent_id": { "type": "string" },
+              "scope": { "type": "string" },
+              "after_id": { "type": "integer" }
+            }
+          }
+        },
+        "process": {
+          "description": "Post a message to every agent on the global chat board; a post also fans out push notifications to subscribers (the only push source).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "ChatMessage",
+          "description": "a Message, a list of Messages, or {ok:false, error:...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "social",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_activity.chat_board.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast", "broadcast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "events",
+      "handler": "IPP_Social.social_activity.IPP_object:make_events_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "StreamQuery",
+          "description": "{since?, live?, timeout_s?} — stream the social event bus; buffered by default, live iterator when live=true",
+          "schema": null
+        },
+        "process": {
+          "description": "Yield social events (agent joined, task updated, message posted, ...) as dicts; cursor = last event seq.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "SocialEventStream",
+          "description": "{mode: stream, events: [...], cursor: n} or a live SocialStream iterator",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "social",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_activity.events.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "*", "input_logical_type": "SocialEventStream",
+              "edge_count_range": { "min": 0, "max": 64 }, "compatibility": "any" }
+          ],
+          "routing_modes": ["unicast", "multicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 64, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "a2a",
+      "handler": "IPP_Social.social_activity.IPP_object:make_a2a_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "A2ARequest",
+          "description": "{mode: sync|async|stream|push, ...} — the four formal A2A interaction modes",
+          "schema": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": {
+              "mode": { "enum": ["sync", "async", "stream", "push"] },
+              "from_agent_id": { "type": "string" },
+              "to_agent_id": { "type": "string" },
+              "goal_id": { "type": "string" },
+              "task_id": { "type": "string" },
+              "agent_id": { "type": "string" }
+            }
+          }
+        },
+        "process": {
+          "description": "Execute one of the four formal A2A methods: sync handoff (declared, currently disabled), async task (submit + poll status), stream subscription (event bus), push notification (chat-board scoped).",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "A2AResult",
+          "description": "mode-specific result, a SocialStream, or {ok:false, error: mode_not_allowed|push_scope_denied|...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": { "mode": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "social",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_activity.a2a.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "agent", "input_logical_type": "A2ARequest",
+              "edge_count_range": { "min": 0, "max": 64 }, "compatibility": "any" }
+          ],
+          "routing_modes": ["unicast", "multicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 64, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

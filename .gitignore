@@ -31,6 +31,8 @@ env/
 # ─── Jupyter ────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
 *.ipynb_checkpoints/
+database/calabiyau3fold
+
 
 # ─── Generated / runtime artifacts (regenerable) ────────────────────────────
 # The knowledge graph + vector index are rebuilt by tools/build.py
@@ -48,6 +50,9 @@ assets/odl_hybrid_output/
 assets/docling_direct_output/
 assets/previous-resources/
 assets/
+# ... but the README screenshots ARE committed
+!assets/screenshot-graphrag.png
+!assets/screenshot-multi-agent.png
 
 # ─── IDE / Editor ───────────────────────────────────────────────────────────
 .vscode/

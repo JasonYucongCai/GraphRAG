@@ -11,10 +11,14 @@
     <div class="brand">
       <span class="logo">⬡</span>
       <div>
-        <h1>Graph Knowledge Network</h1>
+        <a id="brand-home" href="#" class="brand-title" title="Back to the Graph Knowledge Network portal">Graph Knowledge Network</a>
         <span id="health-line" class="sub">connecting…</span>
       </div>
     </div>
+    <nav id="topnav">
+      <button class="topnav-tab active" data-view="control">🖥 Control Center</button>
+      <button class="topnav-tab" data-view="multiagent">🤝 Multi Agent</button>
+    </nav>
     <div class="top-actions">
       <span id="provider-badge" class="badge">…</span>
       <button id="btn-rebuild" class="btn ghost" title="Rebuild graph from assets/">↻ rebuild</button>
@@ -82,6 +86,132 @@
         <!-- final answer (full, scrollable) -->
         <h3>📄 Final answer</h3>
         <div id="agent-answer" class="answer hidden"></div>
+      </section>
+
+      <!-- Multi Agent tab (social portal) -->
+      <section id="tab-multiagent" class="tabpane">
+        <div class="ma-subnav">
+          <button class="ma-subtab active" data-sub="stage">👥 Agent Stage</button>
+          <button class="ma-subtab" data-sub="agents">🤝 Many Agents</button>
+          <button class="ma-subtab" data-sub="data">📁 Data</button>
+          <button class="ma-subtab" data-sub="settings">⚙ Settings</button>
+        </div>
+
+        <!-- Agent Stage: the mini agent boxes (click one → process on the right) -->
+        <div id="ma-sub-stage" class="ma-subpane active">
+          <div id="ma-boxes" class="ma-boxes"></div>
+        </div>
+
+        <!-- Many Agents: START the goal (pick the goal folder, give instructions, launch) -->
+        <div id="ma-sub-agents" class="ma-subpane">
+          <div class="field">
+            <label>🎯 Start the goal (create a folder in the 📁 Data tab)</label>
+            <div class="row">
+              <select id="ma-start-goal" class="grow"><option value="">— no goal folder yet —</option></select>
+              <button id="ma-refresh-goals" class="btn chip" title="refresh the goal list">⟳</button>
+            </div>
+          </div>
+          <div id="ma-goal-status" class="status"></div>
+
+          <div class="field">
+            <label>📋 Instructions to the team</label>
+            <textarea id="ma-goal-instructions" rows="3" placeholder="instructions every selected agent will work toward…"></textarea>
+          </div>
+          <div class="row">
+            <button id="ma-send-instruction" class="btn primary">📨 Start the goal</button>
+            <button id="ma-stop" class="btn ghost">⏹ stop team</button>
+          </div>
+          <div id="ma-status" class="status"></div>
+
+          <div class="field">
+            <div class="row" style="justify-content:space-between">
+              <label>👥 Select agents to run together</label>
+              <span id="ma-pick-count" class="muted">0 selected</span>
+            </div>
+            <div class="row" style="margin:2px 0 6px">
+              <button id="ma-pick-all" class="btn chip">select all</button>
+              <button id="ma-pick-none" class="btn chip">clear</button>
+            </div>
+            <div id="ma-agent-pick" class="ma-agent-pick"></div>
+          </div>
+
+          <div class="field" style="margin-top:8px">
+            <label>✉️ Instruct one agent directly</label>
+            <div class="row">
+              <select id="ma-instruct-agent" class="grow"></select>
+              <button id="ma-instruct" class="btn">send</button>
+            </div>
+          </div>
+          <div class="field">
+            <input id="ma-instruct-text" placeholder="instruction to this agent…">
+          </div>
+        </div>
+
+        <!-- Data: create goal folders + file management + chat clearing -->
+        <div id="ma-sub-data" class="ma-subpane">
+          <h4 class="ma-goals-title">📁 Create a goal folder</h4>
+          <div class="field">
+            <label>🎯 Goal folder name</label>
+            <input id="ma-goal-name" placeholder="e.g. Calabi-Yau survey">
+          </div>
+          <div class="field">
+            <label>📝 Description (optional)</label>
+            <textarea id="ma-goal-description" rows="2" placeholder="what is this goal about?"></textarea>
+          </div>
+          <button id="ma-create-goal" class="btn primary">＋ Create the goal folder</button>
+          <div id="ma-create-status" class="status"></div>
+
+          <h4 class="ma-goals-title">📁 Goal folders <span id="ma-goal-count" class="muted"></span></h4>
+          <div id="ma-goal-list" class="ma-goal-list"></div>
+          <div id="ma-goal-detail" class="ma-goal-detail hidden">
+            <div id="ma-goal-detail-head"></div>
+            <div id="ma-goal-tasks" class="ma-goal-tasks-list"></div>
+            <div class="row">
+              <button id="ma-goal-continue" class="btn primary">▶ start this goal</button>
+              <button id="ma-goal-delete" class="btn danger">🗑 delete</button>
+              <button id="ma-goal-close" class="btn ghost">✕</button>
+            </div>
+          </div>
+
+          <h4 class="ma-goals-title">🧹 Clear chat</h4>
+          <div class="row" style="flex-wrap:wrap; gap:6px">
+            <button id="ma-clear-inter" class="btn">💬 clear inter agent chat</button>
+            <button id="ma-clear-board" class="btn danger">🌐 clear global chat board</button>
+          </div>
+          <div id="ma-clear-status" class="status"></div>
+        </div>
+
+        <!-- Settings: LLM mode + concurrency + social responder -->
+        <div id="ma-sub-settings" class="ma-subpane">
+          <h4 class="ma-goals-title">⚙ Multi Agent platform settings</h4>
+          <div class="field">
+            <label class="ma-setting-row">
+              <input type="checkbox" id="ma-set-streaming">
+              <span>LLM streaming mode</span>
+            </label>
+            <div class="muted" style="font-size:10px">OFF (default) = non-streaming calls → many agents run truly concurrently. ON = per-token streaming (best for a single agent).</div>
+          </div>
+          <div class="field">
+            <label>Max concurrent agents</label>
+            <input type="number" id="ma-set-concurrent" min="1" max="20" value="4">
+          </div>
+          <div class="field">
+            <label class="ma-setting-row">
+              <input type="checkbox" id="ma-set-responder">
+              <span>Social responder (agents auto-reply to messages)</span>
+            </label>
+            <div class="muted" style="font-size:10px">Agents answer direct messages and choose to answer broadcasts based on their social property.</div>
+          </div>
+          <div class="field">
+            <label>Max reply rounds (per conversation)</label>
+            <input type="number" id="ma-set-replyrounds" min="1" max="5" value="2">
+          </div>
+          <div class="row">
+            <button id="ma-save-settings" class="btn primary">💾 Save settings</button>
+            <button id="ma-reset-settings" class="btn ghost">↺ defaults</button>
+          </div>
+          <div id="ma-settings-status" class="status"></div>
+        </div>
       </section>
 
       <!-- Database tab -->
@@ -152,6 +282,33 @@
         <span id="canvas-info" class="info"></span>
         <button id="btn-drawer" class="btn chip" title="Toggle node details panel">☰ details</button>
       </div>
+
+      <!-- Multi Agent stage: agent process + inter-agent chat + global board -->
+      <div id="ma-stage" class="hidden">
+        <div id="ma-stage-toolbar">
+          <h3>👥 Agent Stage</h3>
+          <span id="ma-stage-stats" class="info"></span>
+        </div>
+        <div class="ma-rightnav">
+          <button class="ma-rtab active" data-r="process">🧠 Agent Process</button>
+          <button class="ma-rtab" data-r="inter">💬 Inter Agent Chat</button>
+          <button class="ma-rtab" data-r="board">🌐 Global Chat Board</button>
+        </div>
+        <div id="ma-r-process" class="ma-rpane active">
+          <div id="ma-process-head" class="ma-process-head"><span class="muted">click an agent on the left to watch its process…</span></div>
+          <div id="ma-process" class="ma-process-log"></div>
+        </div>
+        <div id="ma-r-inter" class="ma-rpane">
+          <div id="ma-inter-chat" class="ma-chat-log"><div class="muted">agents talking…</div></div>
+        </div>
+        <div id="ma-r-board" class="ma-rpane">
+          <div id="ma-board" class="ma-chat-log"><div class="muted">board empty…</div></div>
+          <div class="row" style="margin-top:8px">
+            <input id="ma-board-text" class="grow" placeholder="post to the global chat board as user…">
+            <button id="ma-board-send" class="btn">post</button>
+          </div>
+        </div>
+      </div>
       <div id="canvas-body">
         <svg id="graph-canvas" width="100%" height="100%"></svg>
         <iframe id="viz-frame" class="hidden" title="interactive graph"></iframe>
@@ -172,5 +329,6 @@
   <datalist id="node-datalist"></datalist>
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="app.js"></script>
+  <script src="multiagent.js"></script>
 </body>
 </html>

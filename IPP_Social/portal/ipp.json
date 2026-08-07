@@ -1,0 +1,350 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "social_portal",
+  "description": "The Multi Agent portal node: the user's window into the social network. discover reads agents/goals/status; command issues goals, tasks, per-agent instructions and board posts (external dispatch to the social_activity node); monitor streams the live swarm activity; swarm starts/stops the concurrent agent team (external dispatch to the 20 engine nodes' chat_stream channels, constructor-resolved in 𝒢).",
+  "channels": [
+    {
+      "channel_id": "discover",
+      "handler": "IPP_Social.portal.IPP_object:make_discover_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "PortalQuery",
+          "description": "{op: agents|goals|cards|status|board|goal_detail} — discovery queries",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["agents", "goals", "cards", "status", "board", "goal_detail"] },
+              "goal_id": { "type": "string" }
+            }
+          }
+        },
+        "process": {
+          "description": "Discover the social network: agent cards + runtime status + IPP addresses (agents), goal folders with tasks (goals), raw cards (cards), swarm counters (status). Reads go through the social_activity node guardrail envelope.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "PortalInfo",
+          "description": "the requested discovery payload",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_portal.discover.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "social_activity", "input_logical_type": "SocialOp",
+              "edge_count_range": { "min": 0, "max": 8 }, "compatibility": "exact" }
+          ],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "command",
+      "handler": "IPP_Social.portal.IPP_object:make_command_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "PortalCommand",
+          "description": "{op: goal|task|instruct|board|goals, ...} — user instructions through the social network",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["goal", "task", "instruct", "board", "goals", "delete_goal", "clear_chat"] },
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "goal_id": { "type": "string" },
+              "agent_id": { "type": "string" },
+              "instruction": { "type": "string" },
+              "author_agent_id": { "type": "string" },
+              "text": { "type": "string" },
+              "to_agent_id": { "type": "string" },
+              "scope": { "type": "string" }
+            }
+          }
+        },
+        "process": {
+          "description": "Name a goal and give instructions through the social network: create goals/tasks (social_activity.tasks), instruct one individual agent (swarm), or post to the global chat board (social_activity.chat_board).",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "PortalResult",
+          "description": "the social/instruction outcome",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 60000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_portal.command.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "social_activity", "input_logical_type": "SocialOp",
+              "edge_count_range": { "min": 0, "max": 8 }, "compatibility": "exact" }
+          ],
+          "routing_modes": ["unicast", "multicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "monitor",
+      "handler": "IPP_Social.portal.IPP_object:make_monitor_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "StreamQuery",
+          "description": "{since?, live?, timeout_s?} — swarm activity stream (buffered or live)",
+          "schema": null
+        },
+        "process": {
+          "description": "Stream the live multi-agent activity (agent_started, agent_event with thinking/tool_call/tool_result/message, agent_done, agent_error, swarm_*).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "SwarmEventStream",
+          "description": "{mode: stream, events: [...], cursor: n} or a live iterator",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 600000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_portal.monitor.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "*", "input_logical_type": "SwarmEventStream",
+              "edge_count_range": { "min": 0, "max": 64 }, "compatibility": "exact" }
+          ],
+          "routing_modes": ["unicast", "multicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 64, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "swarm",
+      "handler": "IPP_Social.portal.IPP_object:make_swarm_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SwarmCommand",
+          "description": "{op: start|stop|status|addresses, goal?, instructions?, agent_ids?} — run many agents together",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["start", "stop", "status", "addresses"] },
+              "goal": { "type": "string" },
+              "instructions": { "type": "string" },
+              "goal_id": { "type": "string" },
+              "agent_ids": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "process": {
+          "description": "Start/stop the concurrent agent team under one goal; dispatch is limited to the constructor-resolved downstream targets (the 20 engine nodes' chat_stream channels) — out-of-topology agents are skipped (Axiom X5).",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "SwarmResult",
+          "description": "{ok, goal_id, agents, status} or the current swarm status",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 60000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_portal.swarm.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [
+            { "node_class": "*", "input_logical_type": "Task",
+              "edge_count_range": { "min": 0, "max": 64 }, "compatibility": "exact" }
+          ],
+          "routing_modes": ["unicast", "multicast", "broadcast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 64, "acknowledgment": "optional",
+            "backpressure_modes": ["block", "buffer"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "settings",
+      "handler": "IPP_Social.portal.IPP_object:make_settings_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SettingsOp",
+          "description": "{op: get|set, settings?} — platform settings (LLM streaming, concurrency, social responder)",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "enum": ["get", "set"] },
+              "settings": { "type": "object" }
+            }
+          }
+        },
+        "process": {
+          "description": "Read or update the Multi Agent platform settings (persisted in the social database).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "SettingsResult",
+          "description": "{ok, settings}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": { "op": { "type": "string" } }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/social_portal.settings.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

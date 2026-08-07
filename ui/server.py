@@ -56,6 +56,7 @@ node_agent: NodeAgent | None = None
 growth_agent: GrowthAgent | None = None
 store: NoteStore | None = None
 codex_agents: dict = {}   # {agent_id: engine} for codex_normal / codex_RAG / codex_growth
+_platform: dict | None = None   # the Multi Agent platform (strict IPP v0.2.8)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -602,8 +603,9 @@ def db_sync():
 
 @app.post("/api/graph/rebuild")
 def rebuild():
-    global graph, encoder, node_agent, growth_agent, codex_agents, provider
+    global graph, encoder, node_agent, growth_agent, codex_agents, provider, _platform
     with _lock:
+        _platform = None   # agents hold the old graph — rebuild the platform
         if graph.path != Config.GRAPH_JSON:
             from tools.build_cy3 import build_cy3_graph
             graph, encoder = build_cy3_graph(out_dir=graph.path.parent)
@@ -619,6 +621,231 @@ def rebuild():
             "edges": len(graph._edges),
             "chunks": encoder.index.size(),
         })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Multi Agent platform — strict IPP v0.2.8 (social_activity + 20 agents + portal)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _ensure_platform():
+    """Lazily assemble the Multi Agent platform (one shared GraphContext 𝒢).
+
+    Built on first request so the base control center boots fast; every
+    runtime interaction flows through IPP guardrail envelopes.
+    """
+    global _platform
+    with _lock:
+        if _platform is None:
+            from IPP_Social.integration import build_platform
+            logger.info("assembling Multi Agent platform (strict IPP v0.2.8)…")
+            _platform = build_platform(
+                graph, encoder, provider, store,
+                agent_chat_mode=True, max_concurrent=4)
+            n_nodes = len(_platform["ctx"].registry)
+            logger.info("platform ready: %d IPP nodes in 𝒢 (portal=%s, "
+                        "swarm=%d runtimes)", n_nodes,
+                        _platform["portal_node"].node_id,
+                        len(_platform["runtimes"]))
+    return _platform
+
+
+def _portal_invoke(channel: str, payload: dict):
+    """Invoke the portal node through its guardrail envelope.
+
+    None-valued fields are stripped so optional keys pass the port
+    schemas (O1 input conformance).
+    """
+    platform = _ensure_platform()
+    clean = {k: v for k, v in payload.items() if v is not None}
+    return platform["portal_node"].invoke(channel, clean).payload
+
+
+@app.get("/api/social/agents")
+def social_agents():
+    """Agent cards + swarm runtime status + IPP addresses (portal.discover)."""
+    try:
+        return jsonify(_portal_invoke("discover", {"op": "agents"}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social agents failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/social/board")
+def social_board():
+    """The global chat board messages (portal.discover.board)."""
+    try:
+        return jsonify(_portal_invoke("discover", {"op": "board"}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social board failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/social/board")
+def social_board_post():
+    """Post to the global chat board as the user (portal.command.board)."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("command", {
+            "op": "board", "author_agent_id": "user",
+            "text": body.get("text", ""), "tags": body.get("tags"),
+            "to_agent_id": body.get("to_agent_id", "")}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social board post failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/social/goal")
+def social_goal_detail():
+    """One goal folder with its tasks (portal.discover.goal_detail)."""
+    goal_id = request.args.get("goal_id", "")
+    try:
+        return jsonify(_portal_invoke("discover", {"op": "goal_detail",
+                                                    "goal_id": goal_id}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social goal detail failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/social/goal/delete")
+def social_delete_goal():
+    """Permanently delete a goal folder (portal.command.delete_goal)."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("command", {
+            "op": "delete_goal", "goal_id": body.get("goal_id", "")}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social goal delete failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/social/board/clear")
+def social_clear_board():
+    """Clear the chat: scope 'inter' = agent-authored only, 'all' = everything."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("command", {
+            "op": "clear_chat", "scope": body.get("scope", "all")}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social board clear failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/settings")
+def settings_get():
+    """The Multi Agent platform settings (portal.settings.get)."""
+    try:
+        return jsonify(_portal_invoke("settings", {"op": "get"}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("settings get failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/settings")
+def settings_set():
+    """Update the platform settings (portal.settings.set)."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("settings", {"op": "set",
+                                                   "settings": body}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("settings set failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/social/goals")
+def social_goals():
+    """All goal folders with their tasks (portal.discover.goals)."""
+    try:
+        return jsonify(_portal_invoke("discover", {"op": "goals"}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social goals failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/social/goal")
+def social_create_goal():
+    """Name a goal — create the goal folder in the social database."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("command", {
+            "op": "goal", "title": body.get("title", ""),
+            "description": body.get("description", "")}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social goal failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/social/instruct")
+def social_instruct():
+    """Give one individual agent a direct instruction (portal.command)."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("command", {
+            "op": "instruct", "agent_id": body.get("agent_id", ""),
+            "instruction": body.get("instruction", ""),
+            "goal_id": body.get("goal_id")}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("social instruct failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/swarm/start")
+def swarm_start():
+    """Start many agents together under one goal (portal.swarm.start).
+
+    ``goal_id`` reuses an EXISTING goal folder (continue) instead of
+    creating a new one.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        return jsonify(_portal_invoke("swarm", {
+            "op": "start", "goal": body.get("goal", ""),
+            "instructions": body.get("instructions", ""),
+            "agent_ids": body.get("agent_ids"),
+            "goal_id": body.get("goal_id")}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("swarm start failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/swarm/stop")
+def swarm_stop():
+    """Stop all runtimes (portal.swarm.stop)."""
+    try:
+        return jsonify(_portal_invoke("swarm", {"op": "stop"}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("swarm stop failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/swarm/status")
+def swarm_status():
+    """Per-agent status + aggregate counters (portal.swarm.status)."""
+    try:
+        return jsonify(_portal_invoke("swarm", {"op": "status"}))
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("swarm status failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.get("/api/swarm/events")
+def swarm_events():
+    """SSE: live multi-agent activity (portal.monitor over the swarm bus)."""
+    platform = _ensure_platform()
+    since = int(request.args.get("since", 0) or 0)
+
+    def generate():
+        try:
+            for ev in platform["swarm"].bus.iter_live(since=since):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except GeneratorExit:
+            pass
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("swarm events stream ended: %s", exc)
+
+    return Response(generate(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache",
+                             "X-Accel-Buffering": "no"})
 
 
 # ── main ──────────────────────────────────────────────────────────────────────

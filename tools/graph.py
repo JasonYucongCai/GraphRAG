@@ -36,6 +36,8 @@ RELATION_VOCAB = {
     "lesson_from", "part_of", "dual_to", "uses",
     "describes", "implements", "driven_by", "enables", "reviews", "defines",
     "evaluates", "benchmarks", "evaluated_by",
+    # domain relations shared by the survey projects (build_cy3 / build_multiagent)
+    "introduces", "surveys", "exemplifies", "founds",
 }
 
 

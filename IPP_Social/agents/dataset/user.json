@@ -1,0 +1,76 @@
+{
+  "agent_id": "user",
+  "name": "User",
+  "bio": "the human operator at the portal",
+  "status": "active",
+  "capacity": {
+    "math": 50.0,
+    "physics": 50.0,
+    "engineering": 50.0,
+    "biology": 50.0,
+    "genomics": 50.0,
+    "reasoning": 50.0,
+    "research": 50.0,
+    "social": 50.0,
+    "play": 50.0,
+    "creativity": 50.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "physics": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "engineering": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "biology": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "genomics": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "reasoning": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "research": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "social": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "play": {
+      "mean": 50.0,
+      "variance": 5.0
+    },
+    "creativity": {
+      "mean": 50.0,
+      "variance": 5.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-07T15:03:46",
+  "updated": "2026-08-07T15:03:46"
+}

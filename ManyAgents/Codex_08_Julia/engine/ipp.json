@@ -1,0 +1,290 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "Codex_08_Julia_engine",
+  "description": "The general-purpose codex agent engine node: grounds tasks in the local graph (ground), runs the full 19-tool agent loop (chat), and streams the observable loop (chat_stream). ground → chat is an internal blocking pipeline edge.",
+  "channels": [
+    {
+      "channel_id": "ground",
+      "handler": "ManyAgents.Codex_08_Julia.engine.IPP_object:make_ground_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "Task",
+          "description": "{task: str, node_id: str?}",
+          "schema": null
+        },
+        "process": {
+          "description": "Materialize the depth-3 local graph of node_id, retrieve encoder evidence, return the grounded task prompt.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "GroundedTask",
+          "description": "grounded prompt string",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "task"
+            ],
+            "properties": {
+              "task": {
+                "type": "string"
+              },
+              "node_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/Codex_08_Julia_engine.ground.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "graph",
+              "output_logical_type": "LocalGraph",
+              "edge_count_range": {
+                "min": 0,
+                "max": 1
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "chat",
+      "handler": "ManyAgents.Codex_08_Julia.engine.IPP_object:make_chat_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "GroundedTask",
+          "description": "grounded prompt string (or {task, node_id})",
+          "schema": null
+        },
+        "process": {
+          "description": "Run the full agent loop (19 tools, LLM function calling) on the grounded task; return {answer, trace, tokens}.",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "AgentResult",
+          "description": "{answer: str, trace: [steps], tokens: int}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0.1,
+          "max_latency_ms": 600000,
+          "rate_limit_rps": 0,
+          "security_clearance": "api-key",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/Codex_08_Julia_engine.chat.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 60000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "llm",
+              "output_logical_type": "LLMResult",
+              "edge_count_range": {
+                "min": 1,
+                "max": 1
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [
+            {
+              "node_class": "codex_normal_tools",
+              "input_logical_type": "ToolInvocation",
+              "edge_count_range": {
+                "min": 0,
+                "max": 1
+              },
+              "compatibility": "any"
+            }
+          ],
+          "routing_modes": [
+            "unicast",
+            "reduce"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "required",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "chat_stream",
+      "handler": "IPP_Social.swarm.IPP_object:make_live_chat_stream_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "Task",
+          "description": "{task: str, node_id: str?}",
+          "schema": null
+        },
+        "process": {
+          "description": "Stream the general agent loop as observable events + final answer.",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "EventStream",
+          "description": "{events: [ToolCallEvent dicts], answer: str}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0.1,
+          "max_latency_ms": 600000,
+          "rate_limit_rps": 0,
+          "security_clearance": "api-key",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/ipp/Codex_08_Julia_engine.chat_stream.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [
+            "Codex_08_Julia_engine/chat"
+          ],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 60000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "llm",
+              "output_logical_type": "EventStream",
+              "edge_count_range": {
+                "min": 1,
+                "max": 1
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "buffer"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ],
+  "internal_topology": {
+    "edges": [
+      {
+        "from": {
+          "channel_id": "ground",
+          "port": "output"
+        },
+        "to": {
+          "channel_id": "chat",
+          "port": "input"
+        },
+        "mode": "blocking",
+        "timeout_ms": 600000
+      }
+    ]
+  }
+}
