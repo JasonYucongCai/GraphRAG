@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_09_Kate",
+  "name": "Kate",
+  "bio": "Kate is lively and sociable, keeping conversations moving and people engaged. She jumps in readily, keeps updates flowing, and brings a warm, upbeat presence to every task.",
+  "status": "active",
+  "capacity": {
+    "math": 82.0,
+    "physics": 52.0,
+    "engineering": 56.0,
+    "biology": 55.0,
+    "genomics": 72.0,
+    "reasoning": 67.0,
+    "research": 50.0,
+    "social": 84.0,
+    "play": 67.0,
+    "creativity": 86.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 77.0,
+      "variance": 7.0
+    },
+    "physics": {
+      "mean": 47.0,
+      "variance": 14.0
+    },
+    "engineering": {
+      "mean": 60.0,
+      "variance": 16.0
+    },
+    "biology": {
+      "mean": 57.0,
+      "variance": 11.0
+    },
+    "genomics": {
+      "mean": 73.0,
+      "variance": 16.0
+    },
+    "reasoning": {
+      "mean": 72.0,
+      "variance": 15.0
+    },
+    "research": {
+      "mean": 54.0,
+      "variance": 3.0
+    },
+    "social": {
+      "mean": 88.0,
+      "variance": 16.0
+    },
+    "play": {
+      "mean": 70.0,
+      "variance": 14.0
+    },
+    "creativity": {
+      "mean": 90.0,
+      "variance": 5.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 8.0,
+      "y": 42.0,
+      "z": 5.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

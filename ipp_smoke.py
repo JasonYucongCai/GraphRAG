@@ -1,10 +1,10 @@
-"""Smoke test for the ipp core runtime (temporary; superseded by real nodes)."""
+"""Smoke test for the IPP core runtime (temporary; superseded by real nodes)."""
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ipp import IPPFile, IPPConstructor, GraphContext, IPPValidationError, verify_node
+from IPP import IPPFile, IPPConstructor, GraphContext, IPPValidationError, verify_node
 
 SCHEMA_URI = "https://ipp-spec.org/v0.2.8/schema.json"
 
@@ -19,7 +19,7 @@ DEMO_FILE = {
     "node_id": "demo",
     "channels": [{
         "channel_id": "echo",
-        "handler": "ipp_smoke:_demo_handler",
+        "handler": "IPP_smoke:_demo_handler",
         "ipp_object": {
             "input": {"logical_type": "any", "description": "anything"},
             "process": {"description": "echo the payload"},
@@ -98,14 +98,14 @@ def main():
     f2_raw = {
         "$schema": SCHEMA_URI, "ipp_version": "0.2.8", "node_id": "pipe",
         "channels": [
-            {"channel_id": "ground", "handler": "ipp_smoke:_ground",
+            {"channel_id": "ground", "handler": "IPP_smoke:_ground",
              "ipp_object": {"input": {"logical_type": "task",
                                         "description": "task"},
                              "process": {"description": "prefix"},
                              "output": {"logical_type": "task",
                                          "description": "grounded task"}},
              "ipp_executor": dict(DEMO_FILE["channels"][0]["ipp_executor"])},
-            {"channel_id": "chat", "handler": "ipp_smoke:_chat",
+            {"channel_id": "chat", "handler": "IPP_smoke:_chat",
              "ipp_object": {"input": {"logical_type": "task",
                                         "description": "grounded task"},
                              "process": {"description": "chat"},

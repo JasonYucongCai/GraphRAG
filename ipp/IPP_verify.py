@@ -1,5 +1,5 @@
 """
-ipp.IPP_verify — the 17 design-invariant verification (spec §10).
+IPP.IPP_verify — the 17 design-invariant verification (spec §10).
 
 verify_node(node) → list[str] of failed invariants (empty list = ALL 17 OK).
 Each check is a direct, data-driven test of the constructed runtime peers.
@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 from typing import Any, Optional
 
-from ipp.IPP_executor import IPPExecutor
-from ipp.IPP_object import IPPObject
-from ipp.IPP_ports import payload_hash
+from IPP.IPP_executor import IPPExecutor
+from IPP.IPP_object import IPPObject
+from IPP.IPP_ports import payload_hash
 
 _RUNTIME_KEYS = {"code", "python", "script", "exec", "eval", "lambda",
                  "_impl", "function", "callable"}

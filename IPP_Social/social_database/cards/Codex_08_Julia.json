@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_08_Julia",
+  "name": "Julia",
+  "bio": "Julia is dependable and forward-planning. She thinks two steps ahead, volunteers for the next task, and keeps the group organized with a friendly, steady hand.",
+  "status": "active",
+  "capacity": {
+    "math": 73.0,
+    "physics": 50.0,
+    "engineering": 68.0,
+    "biology": 64.0,
+    "genomics": 48.0,
+    "reasoning": 72.0,
+    "research": 75.0,
+    "social": 68.0,
+    "play": 46.0,
+    "creativity": 48.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 77.0,
+      "variance": 4.0
+    },
+    "physics": {
+      "mean": 55.0,
+      "variance": 11.0
+    },
+    "engineering": {
+      "mean": 69.0,
+      "variance": 10.0
+    },
+    "biology": {
+      "mean": 63.0,
+      "variance": 4.0
+    },
+    "genomics": {
+      "mean": 49.0,
+      "variance": 14.0
+    },
+    "reasoning": {
+      "mean": 72.0,
+      "variance": 6.0
+    },
+    "research": {
+      "mean": 77.0,
+      "variance": 15.0
+    },
+    "social": {
+      "mean": 63.0,
+      "variance": 6.0
+    },
+    "play": {
+      "mean": 47.0,
+      "variance": 8.0
+    },
+    "creativity": {
+      "mean": 51.0,
+      "variance": 13.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 35.0,
+      "y": 63.0,
+      "z": 88.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

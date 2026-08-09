@@ -31,7 +31,8 @@ const MA = {
   selectedAgent: null,  // agent_id shown in the right process panel
   events: null,         // EventSource
   cursor: 0,
-  selected: new Set(),  // team checkbox selection
+  selected: new Set(),  // team checkbox selection (preview — not yet committed)
+  activeTeam: new Set(), // committed team (only these agents run)
   agentIds: new Set(),
   currentGoalId: null,  // the goal created or resumed (send targets it)
   view: "control",      // "control" | "multiagent"
@@ -129,12 +130,38 @@ function maUpdatePickCount() {
   const el = ma$("#ma-pick-count");
   if (el) {
     el.textContent = MA.selected.size
-      ? `${MA.selected.size} selected`
-      : "all agents (empty = all)";
+      ? `${MA.selected.size} picked`
+      : "click agents below";
   }
   document.querySelectorAll("#ma-agent-pick .ma-pill").forEach((p) => {
     p.classList.toggle("selected", MA.selected.has(p.dataset.agent));
   });
+  maUpdatePickStatus();
+}
+
+/** Commit the current selection to the active team and show confirmation. */
+function maCommitTeam() {
+  if (MA.selected.size === 0) {
+    // select all by default when committing with nothing picked
+    MA.agents.forEach((a) => MA.selected.add(a.agent_id));
+    maRenderPick();
+  }
+  MA.activeTeam = new Set(MA.selected);
+  maUpdatePickStatus();
+}
+
+function maUpdatePickStatus() {
+  const el = ma$("#ma-pick-status");
+  if (!el) return;
+  if (MA.activeTeam.size > 0) {
+    const names = [...MA.activeTeam].map(maName).slice(0, 5).join(", ");
+    const more = MA.activeTeam.size > 5 ? ` +${MA.activeTeam.size - 5} more` : "";
+    el.textContent = `✅ active team: ${names}${more} (${MA.activeTeam.size} agents)`;
+    el.className = "status done";
+  } else {
+    el.textContent = "pick agents above, then click ✅ update team";
+    el.className = "status";
+  }
 }
 
 function maRenderInstructSelect() {
@@ -322,7 +349,24 @@ function maConnectEvents() {
     MA.cursor = ev.seq;
     maHandleEvent(ev);
   };
-  MA.events.onerror = () => { /* transient — reconnects */ };
+  MA.events.onerror = () => {
+    // The server (or a service refresh) may have restarted the platform —
+    // the SwarmBus cursor restarts at 0, so holding the old cursor would
+    // silently starve the UI. Reset to 0 so the reconnect picks up fresh
+    // events; the periodic status poll keeps the stage in sync meanwhile.
+    if (MA.cursor > 0) MA.cursor = 0;
+  };
+}
+
+// periodic status poll — keeps the stage/boxes in sync even when the SSE
+// stream stalls (e.g. after a services refresh with a new SwarmBus)
+let maStatusTimer = null;
+function maStartStatusPoll() {
+  if (maStatusTimer) return;
+  maStatusTimer = setInterval(maRefreshStatus, 5000);
+}
+function maStopStatusPoll() {
+  if (maStatusTimer) { clearInterval(maStatusTimer); maStatusTimer = null; }
 }
 
 function maHandleEvent(ev) {
@@ -472,31 +516,43 @@ async function maPostBoard() {
 // ── view / tab switching ─────────────────────────────────────────────────
 function maSwitchView(view) {
   MA.view = view;
+  // Set current portal for model selector independence
+  if (typeof MODEL_SELECT !== "undefined") MODEL_SELECT.currentPortal = view;
+  if (typeof updateBadge === "function") updateBadge();
   document.querySelectorAll(".topnav-tab").forEach((b) => {
     b.classList.toggle("active", b.dataset.view === view);
   });
   document.body.classList.toggle("ma-view", view === "multiagent");
   document.querySelectorAll("#tabs .tab").forEach((b) => {
-    b.classList.toggle("hidden", view === "multiagent");
+    b.classList.toggle("hidden", view === "multiagent" || view === "recursive");
   });
   document.querySelectorAll("#sidebar .tabpane").forEach((p) => {
-    p.classList.toggle("active", view === "multiagent" && p.id === "tab-multiagent");
+    p.classList.toggle("active",
+      (view === "multiagent" && p.id === "tab-multiagent") ||
+      (view === "recursive" && p.id === "tab-recursiveagent"));
   });
   const stage = ma$("#ma-stage");
+  const raStage = document.getElementById("ra-stage");
+  const canvasBody = document.getElementById("canvas-body");
   const controls = ma$("#canvas-controls");
   const graphCanvas = ma$("#graph-canvas");
   const vizFrame = ma$("#viz-frame");
+  const isAltView = (view === "multiagent" || view === "recursive");
   if (stage) stage.classList.toggle("hidden", view !== "multiagent");
-  if (controls) controls.classList.toggle("hidden", view === "multiagent");
-  if (graphCanvas) graphCanvas.classList.toggle("hidden", view === "multiagent");
-  if (vizFrame) vizFrame.classList.toggle("hidden", view === "multiagent");
+  if (raStage) raStage.classList.toggle("hidden", view !== "recursive");
+  if (controls) controls.classList.toggle("hidden", isAltView);
+  if (graphCanvas) graphCanvas.classList.toggle("hidden", isAltView);
+  if (vizFrame) vizFrame.classList.toggle("hidden", isAltView);
+  if (canvasBody) canvasBody.classList.toggle("hidden", view === "multiagent");  // only MA hides canvas-body entirely
   if (view === "multiagent") {
     maLoadBoard();
     if (!MA.boardTimer) MA.boardTimer = setInterval(maLoadBoard, 4000);
+    maStartStatusPoll();
     maRefreshStatus();
   } else if (MA.boardTimer) {
     clearInterval(MA.boardTimer);
     MA.boardTimer = null;
+    maStopStatusPoll();
   }
 }
 
@@ -559,6 +615,25 @@ async function maSaveSettings() {
         `concurrency=${s.max_concurrent} · responder=${s.social_responder ? "on" : "off"}`;
     } else el.textContent = "⚠ " + ((data && data.error) || "save failed");
   } catch (e) { ma$("#ma-settings-status").textContent = "⚠ " + e.message; }
+}
+
+async function maRefreshServices() {
+  const el = ma$("#ma-settings-status");
+  if (!confirm("Refresh the Multi Agent services? This stops all running agents and rebuilds the platform.")) return;
+  el.textContent = "🔄 refreshing services…";
+  try {
+    const res = await fetch("/api/services/refresh", { method: "POST" });
+    const data = await res.json().catch(() => null);
+    if (data && data.ok) {
+      el.textContent = `✔ services refreshed: ${data.nodes} IPP nodes · ${data.runtimes} runtimes`;
+      MA.selected.clear();
+      MA.cursor = 0;                 // the platform has a NEW SwarmBus
+      maConnectEvents();             // reconnect SSE from the new cursor
+      await maLoadAgents();          // fresh runtime status + boxes
+      await maLoadSettings();
+      await maRefreshStatus();
+    } else el.textContent = "⚠ " + ((data && data.error) || "refresh failed");
+  } catch (e) { el.textContent = "⚠ refresh failed: " + e.message; }
 }
 
 // ── status helpers ───────────────────────────────────────────────────────
@@ -626,9 +701,12 @@ async function maStartTeam(goalId) {
   if (!gid) { maStatus("⚠ create a goal folder in the 📁 Data tab first"); return; }
   const goalName = sel && sel.selectedOptions.length
     ? sel.selectedOptions[0].textContent.split(" (")[0] : "";
-  const agent_ids = MA.selected.size ? [...MA.selected]
+  // use the committed team; if none committed yet, commit current selection
+  if (MA.activeTeam.size === 0) maCommitTeam();
+  const agent_ids = MA.activeTeam.size ? [...MA.activeTeam]
     : MA.agents.map((a) => a.agent_id);
-  maStatus("▶ starting the goal…");
+  if (agent_ids.length === 0) { maStatus("⚠ select at least one agent and click ✅ update team"); return; }
+  maStatus(`▶ starting the goal with ${agent_ids.length} agents…`);
   try {
     const res = await fetch("/api/swarm/start", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -825,12 +903,14 @@ function maBind() {
     MA.selected.clear();
     maRenderPick();
   });
+  ma$("#ma-pick-update").addEventListener("click", maCommitTeam);
   ma$("#ma-goal-continue").addEventListener("click", maContinueGoal);
   ma$("#ma-goal-delete").addEventListener("click", maDeleteGoal);
   ma$("#ma-goal-close").addEventListener("click", maCloseGoalDetail);
   ma$("#ma-clear-inter").addEventListener("click", () => maClearChat("inter"));
   ma$("#ma-clear-board").addEventListener("click", () => maClearChat("all"));
   ma$("#ma-save-settings").addEventListener("click", maSaveSettings);
+  ma$("#ma-refresh-services").addEventListener("click", maRefreshServices);
   ma$("#ma-reset-settings").addEventListener("click", async () => {
     try {
       await fetch("/api/settings", {

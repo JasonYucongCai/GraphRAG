@@ -12,15 +12,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from tools.engine import AgentEngine
-from tools.encoder import EncoderLayer
-from tools.graph import KnowledgeGraph
+from general_tools.engine import AgentEngine
+from general_tools.encoder import EncoderLayer
+from general_tools.graph import KnowledgeGraph
 from LLMs.deepseek import DeepSeekProvider
-from tools.agent_specs import tool_set, chat_tool_set, system_prompt
+from general_tools.agent_specs import tool_set, chat_tool_set, system_prompt
 
 AGENT_ID = "codex_normal"
 
-_IPP_JSON = Path(__file__).resolve().parent / "ipp.json"
+_IPP_JSON = Path(__file__).resolve().parent / "IPP.json"
 
 
 class CodexNormalEngine(AgentEngine):
@@ -43,9 +43,9 @@ class CodexNormalEngine(AgentEngine):
 def construct_engine_node(engine: CodexNormalEngine,
                           context=None, tool_names: Optional[list] = None,
                           register: bool = True):
-    """Γ ⊩ codex_normal/engine/ipp.json × 𝒢 ↝ the engine IPP node."""
-    from ipp.IPP_constructor import IPPConstructor
-    from ipp.IPP_registry import GraphContext
+    """Γ ⊩ codex_normal/engine/IPP.json × 𝒢 ↝ the engine IPP node."""
+    from IPP.IPP_constructor import IPPConstructor
+    from IPP.IPP_registry import GraphContext
     from codex_normal.engine.IPP_executor import AgentExecutor
 
     ctx = context or GraphContext()

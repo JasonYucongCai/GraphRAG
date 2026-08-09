@@ -1,8 +1,8 @@
 """
 codex_RAG — the RETRIEVAL / RAG agent (operates on & understands the network).
 
-IPP v0.2.8: `create_agent()` constructs the engine node (engine/ipp.json),
-the tools node (tools/ipp.json) and the LLM node (LLMs/ipp.json) through Γ,
+IPP v0.2.8: `create_agent()` constructs the engine node (engine/IPP.json),
+the tools node (tools/IPP.json) and the LLM node (LLMs/IPP.json) through Γ,
 attaching the engine node as `engine.node`.
 """
 from __future__ import annotations
@@ -19,7 +19,7 @@ def create_agent(graph, encoder, llm: Optional[DeepSeekProvider] = None,
                  store: Any = None, model: Optional[str] = None,
                  chat_mode: bool = False) -> CodexRAGEngine:
     """Build the engine + its IPP node and return the engine (node attached)."""
-    from ipp.IPP_registry import GraphContext
+    from IPP.IPP_registry import GraphContext
     from codex_RAG.engine import construct_engine_node
     from codex_RAG.tools import construct_tools_node
 

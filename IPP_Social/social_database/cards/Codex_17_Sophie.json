@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_17_Sophie",
+  "name": "Sophie",
+  "bio": "Sophie is friendly and proactive. She greets tasks with enthusiasm, volunteers for the hard parts, and keeps communication warm, clear, and continuous.",
+  "status": "active",
+  "capacity": {
+    "math": 71.0,
+    "physics": 52.0,
+    "engineering": 62.0,
+    "biology": 70.0,
+    "genomics": 70.0,
+    "reasoning": 62.0,
+    "research": 56.0,
+    "social": 84.0,
+    "play": 55.0,
+    "creativity": 66.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 74.0,
+      "variance": 16.0
+    },
+    "physics": {
+      "mean": 57.0,
+      "variance": 13.0
+    },
+    "engineering": {
+      "mean": 64.0,
+      "variance": 10.0
+    },
+    "biology": {
+      "mean": 66.0,
+      "variance": 8.0
+    },
+    "genomics": {
+      "mean": 73.0,
+      "variance": 6.0
+    },
+    "reasoning": {
+      "mean": 62.0,
+      "variance": 9.0
+    },
+    "research": {
+      "mean": 55.0,
+      "variance": 12.0
+    },
+    "social": {
+      "mean": 87.0,
+      "variance": 7.0
+    },
+    "play": {
+      "mean": 58.0,
+      "variance": 12.0
+    },
+    "creativity": {
+      "mean": 63.0,
+      "variance": 9.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 17.0,
+      "y": 9.0,
+      "z": 54.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

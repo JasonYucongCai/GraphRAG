@@ -1,5 +1,5 @@
 """
-ipp.IPP_ports — Ports (Π = Φ × A × T) and the ten-layer payload Envelope.
+IPP.IPP_ports — Ports (Π = Φ × A × T) and the ten-layer payload Envelope.
 
 Per IPP v0.2.8 §2.2–2.3:
 

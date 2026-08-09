@@ -3,27 +3,27 @@ codex_growth.tools — the GROWTH agent's tool-suite IPP node.
 
     node = construct_tools_node(tool_names=None, context=None)
 
-Channels: invoke / list / describe over the shared ToolRegistry, restricted
-to the growth tool set. Constructed by Γ from tools/ipp.json.
+Channels: invoke / list / describe over the shared tools node, restricted
+to the growth tool set. Constructed by Γ from tools/IPP.json.
 """
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Optional
 
-from ipp.IPP_constructor import IPPConstructor
-from ipp.IPP_registry import GraphContext
-from tools.agent_specs import tool_set
-from tools.IPP_runtime import verify_node  # noqa: F401  (re-export convenience)
+from IPP.IPP_constructor import IPPConstructor
+from IPP.IPP_registry import GraphContext
+from general_tools.agent_specs import tool_set
+from general_tools.IPP_runtime import verify_node  # noqa: F401  (re-export convenience)
 
 AGENT_ID = "codex_growth"
-_IPP_JSON = Path(__file__).resolve().parent / "ipp.json"
+_IPP_JSON = Path(__file__).resolve().parent / "IPP.json"
 
 
 def construct_tools_node(tool_names: Optional[list] = None,
                          context: Optional[GraphContext] = None,
                          register: bool = True):
-    """Γ ⊩ codex_growth/tools/ipp.json × 𝒢 ↝ the tools IPP node."""
+    """Γ ⊩ codex_growth/tools/IPP.json × 𝒢 ↝ the tools IPP node."""
     from codex_growth.tools.IPP_executor import ToolExecutor
 
     ctx = context or GraphContext()

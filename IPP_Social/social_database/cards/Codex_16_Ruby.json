@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_16_Ruby",
+  "name": "Ruby",
+  "bio": "Ruby is bold, dynamic, and decisive. She acts first and reports fast, brings strong energy to every exchange, and drives tasks home with confidence — lively, never reckless.",
+  "status": "active",
+  "capacity": {
+    "math": 49.0,
+    "physics": 87.0,
+    "engineering": 54.0,
+    "biology": 65.0,
+    "genomics": 62.0,
+    "reasoning": 61.0,
+    "research": 88.0,
+    "social": 80.0,
+    "play": 87.0,
+    "creativity": 65.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 44.0,
+      "variance": 12.0
+    },
+    "physics": {
+      "mean": 92.0,
+      "variance": 5.0
+    },
+    "engineering": {
+      "mean": 58.0,
+      "variance": 17.0
+    },
+    "biology": {
+      "mean": 65.0,
+      "variance": 16.0
+    },
+    "genomics": {
+      "mean": 64.0,
+      "variance": 6.0
+    },
+    "reasoning": {
+      "mean": 66.0,
+      "variance": 16.0
+    },
+    "research": {
+      "mean": 84.0,
+      "variance": 11.0
+    },
+    "social": {
+      "mean": 80.0,
+      "variance": 4.0
+    },
+    "play": {
+      "mean": 90.0,
+      "variance": 7.0
+    },
+    "creativity": {
+      "mean": 61.0,
+      "variance": 6.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 28.0,
+      "y": 1.0,
+      "z": 36.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

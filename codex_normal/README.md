@@ -9,12 +9,12 @@ search. This is the agent you chat with for general tasks.
 | Path | Role |
 |---|---|
 | `engine/__init__.py` | `CodexNormalEngine` (AgentEngine subclass) + `construct_engine_node()` |
-| `engine/ipp.json` | the engine node (𝔉): channels `ground` · `chat` · `chat_stream` + internal **blocking** edge `ground → chat` |
+| `engine/IPP.json` | the engine node (𝔉): channels `ground` · `chat` · `chat_stream` + internal **blocking** edge `ground → chat` |
 | `engine/IPP_object.py` | the Objects (Ω_k): `make_ground_handler` (inline depth-3 grounding — the base `AgentEngine` has no `_ground`) / `make_chat_handler` / `make_chat_stream_handler` |
 | `engine/IPP_executor.py` | the Executors (Ξ_k): `AgentExecutor` (trace/tool-call audit extras) |
-| `tools/__init__.py` | `construct_tools_node()` — the tools node (Γ ⊩ `tools/ipp.json`) |
-| `tools/ipp.json` | the tools node (𝔉): channels `invoke` · `list` · `describe`, restricted to the full 19-tool general set |
-| `tools/IPP_object.py` | the Objects (Ω_k): four-phase lifecycle invocation via `tools.IPP.ToolRegistry` |
+| `tools/__init__.py` | `construct_tools_node()` — the tools node (Γ ⊩ `tools/IPP.json`) |
+| `tools/IPP.json` | the tools node (𝔉): channels `invoke` · `list` · `describe`, restricted to the full 19-tool general set |
+| `tools/IPP_object.py` | the Objects (Ω_k): op-dispatch handlers over `tools.impl` |
 | `tools/IPP_executor.py` | the Executors (Ξ_k): `ToolExecutor` (tool identity in the audit) |
 | `system_prompt.md` | the general-purpose system prompt |
 | `__init__.py` | `create_agent()` — builds engine + tools + llm nodes through Γ, attaches `engine.node` |

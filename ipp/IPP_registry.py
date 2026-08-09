@@ -1,5 +1,5 @@
 """
-ipp.IPP_registry — the Graph Context 𝒢 (external, deployment-specific).
+IPP.IPP_registry — the Graph Context 𝒢 (external, deployment-specific).
 
 Per IPP v0.2.8 §3.2:
 
@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-logger = logging.getLogger("ipp.IPP_registry")
+logger = logging.getLogger("IPP.IPP_registry")
 
 
 class RegistryEntry:

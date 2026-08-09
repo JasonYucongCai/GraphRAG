@@ -10,7 +10,7 @@ Public API:
     print(r.payload["content"])             # LLMResult dict
     node.executors["chat"].audit_verify()   # hash chain check
 
-The node is constructed by Γ (ipp.IPP_constructor) from LLMs/ipp.json, with the
+The node is constructed by Γ (IPP.IPP_constructor) from LLMs/IPP.json, with the
 provider bound into the GraphContext (bindings["provider"]).
 """
 from __future__ import annotations
@@ -19,12 +19,12 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from ipp.IPP_constructor import IPPConstructor
-from ipp.IPP_registry import GraphContext
+from IPP.IPP_constructor import IPPConstructor
+from IPP.IPP_registry import GraphContext
 
 logger = logging.getLogger("LLMs.IPP")
 
-_IPP_JSON = Path(__file__).resolve().parent / "ipp.json"
+_IPP_JSON = Path(__file__).resolve().parent / "IPP.json"
 
 
 def _default_provider():
@@ -42,7 +42,7 @@ def _default_provider():
 
 def llm_node(provider=None, context: Optional[GraphContext] = None,
              constructor: Optional[IPPConstructor] = None):
-    """Γ ⊩ LLMs/ipp.json × 𝒢 ↝ ((Ω_k, Ξ_k)) — the LLM node.
+    """Γ ⊩ LLMs/IPP.json × 𝒢 ↝ ((Ω_k, Ξ_k)) — the LLM node.
 
     Args:
         provider: a DeepSeekProvider / MockProvider (default: live-or-mock).

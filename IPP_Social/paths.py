@@ -21,4 +21,5 @@ EVENTS_DIR = SOCIAL_DATABASE / "events"     # events.jsonl
 PUSH_DIR = SOCIAL_DATABASE / "push"         # subscriptions.json + <agent>/inbox.jsonl
 
 # ── the 20-agent dataset (one JSON per agent) ───────────────────────────
-AGENTS_DATASET = IPP_SOCIAL_ROOT / "agents" / "dataset"
+# Agent cards live in the social database alongside the other data.
+AGENTS_DATASET = SOCIAL_DATABASE / "cards"

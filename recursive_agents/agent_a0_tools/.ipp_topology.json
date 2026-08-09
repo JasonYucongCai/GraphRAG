@@ -1,0 +1,17 @@
+{
+  "upstream": [
+    "tools.mcp"
+  ],
+  "downstream": [],
+  "routing_rules": {
+    "dispatch": "unicast"
+  },
+  "edge_constraints": {
+    "max_parallel_edges": 1,
+    "acknowledgment": "optional",
+    "backpressure_modes": [
+      "buffer"
+    ],
+    "resolution_policy": "constructor_resolved"
+  }
+}

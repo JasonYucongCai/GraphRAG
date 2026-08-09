@@ -5,7 +5,7 @@ Agent-specific audit extras: trace length + tool-call count (hash-chained).
 """
 from __future__ import annotations
 
-from ipp.IPP_executor import IPPExecutor
+from IPP.IPP_executor import IPPExecutor
 
 
 class AgentExecutor(IPPExecutor):

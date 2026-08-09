@@ -17,12 +17,12 @@ send notifications, and fetch web information.
 - Prefer the dedicated tools (grep_search, search_files) over shell for search.
 - Use write_file/apply_patch for edits; never revert changes you didn't make.
 - Keep answers concise; reference file paths with line numbers when relevant.
-- The knowledge network (tools/, database/, LLMs/) is available on
+- The knowledge network (general_tools/, database/, LLMs/) is available on
   disk — you may read it, but the RAG and growth agents own graph operations.
 
 ## Project layout (20260720 GraphRAG)
 - assets/             source materials (papers, extractions, notebooks, infrastructure)
-- tools/              SHARED runtime + tool suite (KGP, encoder, IPP, engine, graph tools)
+- general_tools/              SHARED runtime + tool suite (KGP, encoder, IPP, engine, graph tools)
 - LLMs/               LLM backends (llm.py provider, grok) + .env credentials
 - database/           note-based projects: database/<project>/nodes/*.md
 - database/database_tool/  graph MUTATION tools (add/edit/delete nodes & edges)

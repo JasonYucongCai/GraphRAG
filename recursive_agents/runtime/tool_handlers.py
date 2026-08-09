@@ -1,0 +1,164 @@
+"""
+recursive_agents.runtime.tool_handlers — the SHARED Ω factories of the
+recursive agents' tools nodes.
+
+The tools node is a ROUTER over the agent's OWN toolkit
+(recursive_agents.runtime.toolkit.AgentToolkit), bound by Γ through
+GraphContext.bindings["toolkit"]:
+
+  invoke / list / describe — the general capability surface: the agent's
+      own toolkit registry (construction suite) + the SHARED tools node
+      (general_tools) for the ACL — one execution plane, one audit trail.
+  agent_plan / agent_generate / agent_create / agent_evaluate /
+      agent_test / agent_improve / agent_deploy / agent_status — the
+      agent-construction suite: REAL tools that write the next agent's
+      folders, construct its IPP nodes through Γ and verify them.
+
+Every handler is a thin adapter over the toolkit's tool instances — the
+tools ARE the implementation, the channels ARE the guardrail surface.
+These factories are SHARED (each agent's F-file references this module).
+"""
+from __future__ import annotations
+
+from typing import Any, Optional
+
+from general_tools.IPP import ToolContext
+
+
+def _toolkit(bindings: dict):
+    return bindings.get("toolkit")
+
+
+def _run(tk, tool_name: str, payload: dict, context: dict) -> dict:
+    tool = tk.get(tool_name) if tk else None
+    if tool is None:
+        return {"ok": False, "error": "no_toolkit",
+                "message": "toolkit or tool not bound"}
+    ctx = ToolContext(workspace_root=tk.ws_root, agent=tk)
+    result = tool._run(payload, ctx)
+    return {"ok": result.ok, "content": result.content,
+            "error": result.error, "metadata": result.metadata}
+
+
+# ════════════════════════════════════════════════════════════════════════
+# invoke / list / describe — the general capability surface
+# ════════════════════════════════════════════════════════════════════════
+def make_invoke_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        tk = _toolkit(bindings)
+        if tk is None:
+            return {"ok": False, "error": "no_toolkit",
+                    "message": "no toolkit bound"}
+        tool = payload.get("tool", "")
+        args = payload.get("args", {}) or {}
+        # the agent's OWN construction suite executes here
+        if tool in tk.tools:
+            return _run(tk, tool, args, context)
+        # the general surface delegates to the SHARED tools node (ACL)
+        if tool not in set(bindings.get("tool_names") or []):
+            return {"ok": False, "error": "tool_not_allowed",
+                    "content": f"tool {tool!r} not in this agent's tool set",
+                    "metadata": {}}
+        from general_tools.construct import tools_node
+        out = tools_node().invoke(
+            "invoke", {"tool": tool, "args": args,
+                       "agent_id": bindings.get("agent_id", "")}).payload
+        if not isinstance(out, dict):
+            out = {"ok": bool(out), "content": str(out), "error": None,
+                   "metadata": {}}
+        return out
+
+    return handler
+
+
+def make_list_handler(bindings: dict):
+    def handler(payload: Any, context: dict) -> list:
+        tk = _toolkit(bindings)
+        own = sorted(tk.tools) if tk else []
+        acl = sorted(bindings.get("tool_names") or [])
+        return sorted(set(own + acl))
+
+    return handler
+
+
+def make_describe_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> Optional[dict]:
+        tk = _toolkit(bindings)
+        tool = payload.get("tool", "")
+        if tk and tool in tk.tools:
+            return tk.get(tool).definition()
+        if tool not in set(bindings.get("tool_names") or []):
+            return None
+        from general_tools.construct import tools_node
+        out = tools_node().invoke("describe", {"tool": tool}).payload
+        if not isinstance(out, dict) or not out.get("ok"):
+            return None
+        return out.get("definition")
+
+    return handler
+
+
+# ════════════════════════════════════════════════════════════════════════
+# the agent-construction suite (adapters over the toolkit's real tools)
+# ════════════════════════════════════════════════════════════════════════
+def make_agent_plan_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_plan", payload, context)
+
+    return handler
+
+
+def make_agent_generate_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        tk = _toolkit(bindings)
+        if tk is None:
+            return {"ok": False, "error": "no_toolkit",
+                    "message": "no toolkit bound"}
+        payload = dict(payload)
+        payload.setdefault("generated_by",
+                           bindings.get("agent_id", "the compiler"))
+        return _run(tk, "agent_generate", payload, context)
+
+    return handler
+
+
+def make_agent_create_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_create", payload, context)
+
+    return handler
+
+
+def make_agent_evaluate_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_evaluate", payload, context)
+
+    return handler
+
+
+def make_agent_test_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_test", payload, context)
+
+    return handler
+
+
+def make_agent_improve_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_improve", payload, context)
+
+    return handler
+
+
+def make_agent_deploy_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_deploy", payload, context)
+
+    return handler
+
+
+def make_agent_status_handler(bindings: dict):
+    def handler(payload: dict, context: dict) -> dict:
+        return _run(_toolkit(bindings), "agent_status", payload, context)
+
+    return handler

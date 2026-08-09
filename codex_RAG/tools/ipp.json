@@ -53,7 +53,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/codex_RAG_tools.invoke.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/codex_RAG_tools.invoke.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -66,7 +66,10 @@
             { "node_class": "*", "output_logical_type": "ToolInvocation",
               "edge_count_range": { "min": 0, "max": 16 }, "compatibility": "any" }
           ],
-          "downstream_compatible": [],
+                    "downstream_compatible": [
+            { "node_class": "tools", "input_logical_type": "ToolInvocation",
+              "edge_count_range": { "min": 0, "max": 32 }, "compatibility": "exact" }
+          ],
           "routing_modes": ["unicast"],
           "constraint_envelope": {
             "max_parallel_edges": 16, "acknowledgment": "required",
@@ -93,7 +96,7 @@
                    "rate_limit_rps": 0, "security_clearance": "",
                    "retry_policy": {"max_retries": 0, "backoff_strategy": "constant"}},
         "provenance": {"audit_level": "summary",
-                       "log_endpoint": "graph_data/logs/ipp/codex_RAG_tools.list.jsonl",
+                       "log_endpoint": "graph_data/logs/IPP/codex_RAG_tools.list.jsonl",
                        "chain_of_custody": false},
         "error_handling": {"fallback_nodes": [],
                            "circuit_breaker": {"failure_threshold": 10,
@@ -132,7 +135,7 @@
                    "rate_limit_rps": 0, "security_clearance": "",
                    "retry_policy": {"max_retries": 0, "backoff_strategy": "constant"}},
         "provenance": {"audit_level": "summary",
-                       "log_endpoint": "graph_data/logs/ipp/codex_RAG_tools.describe.jsonl",
+                       "log_endpoint": "graph_data/logs/IPP/codex_RAG_tools.describe.jsonl",
                        "chain_of_custody": false},
         "error_handling": {"fallback_nodes": [],
                            "circuit_breaker": {"failure_threshold": 10,

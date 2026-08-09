@@ -6,6 +6,24 @@ const CAT_COLORS = {
   subject: "#4caf7d", paper: "#4c9aff", concept: "#ffab4c",
   benchmark: "#b57ff2", experience: "#ef5350", note: "#4cc2ff",
 };
+// per-project category colors (categories.json) — loaded from the server;
+// falls back to CAT_COLORS / #888 when no project is open or the map lacks
+// a category (classification projects have their own sets: root/menlei/
+// dalei/zhonglei/xiaolei, section/division/group/class, …)
+let DB_COLORS = { default: "#8aa0b0", map: {} };
+function catColor(category) {
+  return (DB_COLORS.map && DB_COLORS.map[category]) || CAT_COLORS[category]
+    || DB_COLORS.default || "#8aa0b0";
+}
+async function loadDbColors() {
+  try {
+    const proj = $("#db-project-select")?.value || "";
+    const r = await api(`/api/database/categories?project=${encodeURIComponent(proj)}`);
+    if (r && r.map) DB_COLORS = { default: r.default || "#8aa0b0", map: r.map };
+  } catch (e) { /* keep fallback */ }
+  if (state.viz === "interactive") loadInteractive();
+  else if (state.viz === "mermaid") loadMermaid();
+}
 const CAT_LABELS = {
   subject: "subject", paper: "paper", concept: "concept",
   benchmark: "benchmark", experience: "experience", note: "note",
@@ -49,13 +67,74 @@ document.querySelectorAll(".tab").forEach((btn) => {
 });
 
 // ── boot ───────────────────────────────────────────────────────────────────
+const MODEL_SELECT = {
+  available: {},           // {model_id: label}
+  active: "deepseek-v4-flash",
+  perPortal: { control: null, multiagent: null, recursive: null },
+  currentPortal: "control",
+};
+
+function modelForPortal() {
+  const override = MODEL_SELECT.perPortal[MODEL_SELECT.currentPortal];
+  return override || MODEL_SELECT.active;
+}
+
+function renderModelSelector() {
+  const list = document.getElementById("model-dropdown-list");
+  if (!list) return;
+  const current = modelForPortal();
+  let html = "";
+  Object.entries(MODEL_SELECT.available).forEach(([id, label]) => {
+    const active = id === current ? " active" : "";
+    const dotClass = id.includes("pro") ? "pro" : "flash";
+    html += `<button class="model-dropdown-item${active}" data-model="${esc(id)}">
+      <span class="model-dot ${dotClass}"></span> ${esc(label)} <span style="color:var(--muted);font-size:10px;margin-left:auto">${esc(id)}</span>
+    </button>`;
+  });
+  html += '<hr class="model-dropdown-divider">';
+  html += `<div style="font-size:10px;color:var(--muted);padding:4px 12px">Portal: ${esc(MODEL_SELECT.currentPortal)}</div>`;
+  list.innerHTML = html;
+  list.querySelectorAll(".model-dropdown-item").forEach(btn => {
+    btn.addEventListener("click", () => {
+      MODEL_SELECT.perPortal[MODEL_SELECT.currentPortal] = btn.dataset.model;
+      updateBadge();
+      document.getElementById("model-selector").classList.add("hidden");
+      if (window.onModelChanged) window.onModelChanged(btn.dataset.model, MODEL_SELECT.currentPortal);
+    });
+  });
+}
+
+function updateBadge() {
+  const badge = document.getElementById("provider-badge");
+  if (!badge) return;
+  const model = modelForPortal();
+  const label = MODEL_SELECT.available[model] || model;
+  badge.textContent = label;
+  badge.className = "badge " + (model.includes("pro") ? "live pro" : "live");
+}
+
+function esc(s) { return String(s || "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+
 async function boot() {
   try {
     const h = await api("/api/health");
-    const badge = $("#provider-badge");
-    badge.textContent = h.provider || "no provider";
-    badge.className = "badge " + ((h.provider || "").startsWith("deepseek") ? "live" : "mock");
+    MODEL_SELECT.available = h.available_models || {"deepseek-v4-flash": "DeepSeek V4 Flash"};
+    MODEL_SELECT.active = h.model || "deepseek-v4-flash";
+    updateBadge();
+    renderModelSelector();
     $("#health-line").textContent = `${h.workspace} · ${h.tools.length} tools · ${h.model}`;
+
+    const badge = document.getElementById("provider-badge");
+    badge.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const dd = document.getElementById("model-selector");
+      dd.classList.toggle("hidden");
+      renderModelSelector();
+    });
+    document.addEventListener("click", () => {
+      const dd = document.getElementById("model-selector");
+      if (dd) dd.classList.add("hidden");
+    });
   } catch (e) {
     $("#health-line").textContent = "server unreachable: " + e.message;
   }
@@ -65,6 +144,7 @@ async function boot() {
   await refreshRuns();
   await loadDbProjects();
   await loadDbNotes();
+  await loadDbColors();
 }
 
 // ── graph summary cards ────────────────────────────────────────────────────
@@ -102,7 +182,7 @@ function renderNodeList(nodes) {
     el.className = "list-item";
     el.innerHTML = `
       <div class="name">${escapeHtml(n.entryname)}
-        <span class="cat" style="background:${CAT_COLORS[n.category] || "#888"}22;color:${CAT_COLORS[n.category] || "#888"}">
+        <span class="cat" style="background:${catColor(n.category)}22;color:${catColor(n.category)}">
           ${CAT_LABELS[n.category] || n.category}</span>
       </div>
       <div class="meta">${escapeHtml(String(n.node_id))} · in ${n.in_degree} · out ${n.out_degree} · pr ${n.pagerank}</div>`;
@@ -127,10 +207,10 @@ async function selectNode(nodeId) {
   try {
     const n = await api(`/api/graph/node/${encodeURIComponent(nodeId)}`);
     $("#drawer-title").textContent = n.entryname;
-    const catColor = CAT_COLORS[n.category] || "#888";
+    const cColor = catColor(n.category);
     let html = `
       <div class="kv"><span class="k">id</span><span class="v">${escapeHtml(String(n.node_id))}</span></div>
-      <div class="kv"><span class="k">category</span><span class="v" style="color:${catColor}">${n.category}</span></div>
+      <div class="kv"><span class="k">category</span><span class="v" style="color:${cColor}">${n.category}</span></div>
       <div class="kv"><span class="k">version</span><span class="v">${n.version}</span></div>
       <div class="kv"><span class="k">in/out</span><span class="v">${n.stats.in_degree} / ${n.stats.out_degree}</span></div>
       <div class="kv"><span class="k">pagerank</span><span class="v">${n.stats.pagerank}</span></div>
@@ -138,7 +218,7 @@ async function selectNode(nodeId) {
       <h3>⬅ incoming</h3>`;
     n.incoming.forEach((i) => {
       html += `<div class="neighbor"><span>${escapeHtml(i.entryname)}</span>
-        <span style="color:${catColor}">${i.relation}</span></div>`;
+        <span style="color:${cColor}">${i.relation}</span></div>`;
     });
     html += `<h3>➡ outgoing</h3>`;
     n.outgoing.forEach((o) => {
@@ -266,7 +346,7 @@ function renderGraph() {
 
   let circlesHtml = "";
   state.viewNodes.forEach((n) => {
-    const color = CAT_COLORS[n.category] || "#8aa0b0";
+    const color = catColor(n.category);
     const r = String(n.node_id) === String(state.viewAnchor) ? 14 : 9;
     circlesHtml += `<g class="node" data-id="${escapeHtml(String(n.node_id))}">
       <circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="${r}" fill="${color}" fill-opacity=".85"/>
@@ -800,7 +880,37 @@ async function loadDbProjects() {
       dbStatus("done", `project open: ${r.current}`);
     }
   } catch (e) { dbStatus("error", e.message); }
+  loadDbSupplements();
 }
+
+// the OpenSupplement dropdown ALWAYS shows the SELECTED project's bundles —
+// never a stale server-side "current" (project-scoped via ?project=).
+async function loadDbSupplements() {
+  try {
+    const proj = $("#db-project-select")?.value || "";
+    const r = await api(`/api/database/supplements?project=${encodeURIComponent(proj)}`);
+    const sel = $("#db-supplement-select");
+    const prev = sel.value;                       // preserve current selection
+    const sups = r.supplements || [];
+    sel.innerHTML = `<option value="">— no supplements —</option>` +
+      sups.map((s) =>
+        `<option value="${escapeHtml(s.slug)}">${escapeHtml(s.name)} ` +
+        `(${s.nodes} notes${s.active ? " · active" : ""})</option>`).join("");
+    // keep the previous choice when it still exists; otherwise prefer an
+    // ACTIVE supplement so "✕ close" works right after OpenSupplement / reload
+    const opts = Array.from(sel.options).map((o) => o.value);
+    if (prev && opts.includes(prev)) {
+      sel.value = prev;
+    } else {
+      const act = sups.find((s) => s.active);
+      sel.value = act ? act.slug : "";
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
+// switching the selected project immediately re-scopes the supplement list
+// and the category colors (selected project, not server-side "current")
+$("#db-project-select").addEventListener("change", () => { loadDbSupplements(); loadDbColors(); });
 
 async function loadDbNotes() {
   try {
@@ -858,10 +968,15 @@ async function saveNoteEditor() {
 $("#btn-db-open").addEventListener("click", async () => {
   const name = $("#db-project-select").value;
   if (!name) return;
+  const merge = $("#db-merge-check")?.checked ?? false;
   try {
-    const r = await api("/api/database/open", { method: "POST", body: { name } });
-    dbStatus("done", `opened ${r.project.name}: ${r.nodes} nodes · ${r.edges} edges`);
-    loadDbNotes(); refreshSummary(); refreshNodes(); loadGraph();
+    const r = await api("/api/database/open", {
+      method: "POST",
+      body: { name, replace: !merge },
+    });
+    dbStatus("done", `opened ${r.project.name}: ${r.nodes} nodes · ${r.edges} edges`
+      + (r.replaced ? " (graph replaced)" : " (merged)"));
+    loadDbNotes(); refreshSummary(); refreshNodes(); loadGraph(); loadDbColors();
   } catch (e) { dbStatus("error", e.message); }
 });
 
@@ -889,6 +1004,53 @@ $("#btn-db-sync").addEventListener("click", async () => {
 $("#btn-db-refresh").addEventListener("click", () => { loadDbProjects(); loadDbNotes(); });
 $("#btn-db-save").addEventListener("click", saveNoteEditor);
 $("#btn-db-cancel").addEventListener("click", () => $("#db-editor").classList.add("hidden"));
+
+// ── database tab — supplements (opt-in graph overlays) ──────────────────────
+$("#btn-db-supp-open").addEventListener("click", async () => {
+  const slug = $("#db-supplement-select").value;
+  const proj = $("#db-project-select")?.value || "";
+  if (!slug) { dbStatus("error", "select a supplement first"); return; }
+  try {
+    const r = await api("/api/database/supplement/open", {
+      method: "POST", body: { supplement: slug, project: proj } });
+    dbStatus("done", `supplement "${r.supplement}" open: +${r.loaded} nodes · +${r.edges_loaded} edges`);
+    loadDbNotes(); loadDbSupplements(); refreshSummary(); refreshNodes(); loadGraph(); loadDbColors();
+  } catch (e) { dbStatus("error", e.message); }
+});
+
+$("#btn-db-supp-close").addEventListener("click", async () => {
+  let slug = $("#db-supplement-select").value;
+  const proj = $("#db-project-select")?.value || "";
+  if (!slug) {
+    // fallback: close the first ACTIVE supplement (selection may have reset)
+    try {
+      const r = await api(`/api/database/supplements?project=${encodeURIComponent(proj)}`);
+      const act = (r.supplements || []).find((s) => s.active);
+      slug = act ? act.slug : "";
+    } catch (e) { /* keep empty */ }
+  }
+  if (!slug) { dbStatus("error", "select a supplement first"); return; }
+  try {
+    const r = await api("/api/database/supplement/close", {
+      method: "POST", body: { supplement: slug, project: proj } });
+    dbStatus("done", `supplement "${r.supplement}" closed: removed ${r.removed_nodes} nodes · ${r.removed_edges} edges`);
+    loadDbNotes(); loadDbSupplements(); refreshSummary(); refreshNodes(); loadGraph(); loadDbColors();
+  } catch (e) { dbStatus("error", e.message); }
+});
+
+$("#btn-db-supp-create").addEventListener("click", async () => {
+  const name = $("#db-supp-create-name").value.trim();
+  const proj = $("#db-project-select")?.value || "";
+  if (!name) { dbStatus("error", "supplement name required"); return; }
+  if (!proj) { dbStatus("error", "select a project first"); return; }
+  try {
+    await api("/api/database/supplement/create", { method: "POST",
+      body: { name, description: $("#db-supp-create-desc").value.trim(), project: proj } });
+    $("#db-supp-create-name").value = "";
+    dbStatus("done", `created supplement "${name}" in "${proj}"`);
+    loadDbSupplements();
+  } catch (e) { dbStatus("error", e.message); }
+});
 
 // ── utilities ───────────────────────────────────────────────────────────────
 function escapeHtml(s) {

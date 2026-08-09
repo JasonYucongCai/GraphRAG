@@ -1,0 +1,202 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "{node_id}",
+  "description": "The recursive agent {agent_id} engine node: grounds tasks in the local graph (ground), runs the agent loop with the agent-construction tool suite (chat), streams the observable loop (chat_stream). ground → chat is an internal blocking pipeline edge. The AGENT-CONSTRUCTION capability lives in the agent's TOOLS node (agent_create / agent_generate / agent_evaluate / agent_test / agent_improve / agent_deploy / agent_plan / agent_status) — the engine is the loop, the tools are the hands.",
+  "channels": [
+    {
+      "channel_id": "ground",
+      "handler": "{engine_pkg}.IPP_object:make_ground_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "Task",
+          "description": "{task: str, node_id: str?}",
+          "schema": null
+        },
+        "process": {
+          "description": "Materialize the depth-3 local graph of node_id, retrieve encoder evidence, return the grounded task prompt.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "GroundedTask",
+          "description": "grounded prompt string",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": ["task"],
+            "properties": {
+              "task": {"type": "string"},
+              "node_id": {"type": ["string", "null"]}
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.ground.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 0 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            { "node_class": "graph", "output_logical_type": "LocalGraph",
+              "edge_count_range": { "min": 0, "max": 1 }, "compatibility": "any" }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 4, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "chat",
+      "handler": "{engine_pkg}.IPP_object:make_chat_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "GroundedTask",
+          "description": "grounded prompt string (or {task, node_id})",
+          "schema": null
+        },
+        "process": {
+          "description": "Run the agent loop (LLM function calling; tool surface = the agent_* construction suite + the shared tools node) on the grounded task; return {answer, trace, tokens}.",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "AgentResult",
+          "description": "{answer: str, trace: [steps], tokens: int}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0.1,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "api-key",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.chat.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            { "node_class": "*", "output_logical_type": "GroundedTask",
+              "edge_count_range": { "min": 0, "max": 1 }, "compatibility": "any" }
+          ],
+          "downstream_compatible": [
+            { "node_class": "tools", "input_logical_type": "ToolInvocation",
+              "edge_count_range": { "min": 0, "max": 64 }, "compatibility": "any" }
+          ],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 64, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "chat_stream",
+      "handler": "{engine_pkg}.IPP_object:make_chat_stream_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "GroundedTask",
+          "description": "grounded prompt string (or {task, node_id})",
+          "schema": null
+        },
+        "process": {
+          "description": "The observable agent loop as a collected event stream: {events, answer}.",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "AgentStream",
+          "description": "{events: [steps], answer: str}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0.1,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "api-key",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.chat_stream.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            { "node_class": "*", "output_logical_type": "GroundedTask",
+              "edge_count_range": { "min": 0, "max": 1 }, "compatibility": "any" }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 8, "acknowledgment": "optional",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ],
+  "internal_topology": {
+    "edges": [
+      {
+        "from": { "channel_id": "ground", "port": "output" },
+        "to":   { "channel_id": "chat", "port": "input" },
+        "mode": "blocking",
+        "timeout_ms": 300000
+      }
+    ]
+  }
+}

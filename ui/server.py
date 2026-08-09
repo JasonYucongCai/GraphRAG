@@ -23,8 +23,10 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 import threading
+import time
 from pathlib import Path
 
 # ── workspace root on path (run from anywhere) ───────────────────────────────
@@ -34,14 +36,15 @@ if str(_WS) not in sys.path:
 
 from flask import Flask, Response, jsonify, request, send_from_directory  # noqa: E402
 
-from tools.config import Config  # noqa: E402
-from tools.graph import KnowledgeGraph  # noqa: E402
-from tools.encoder import EncoderLayer  # noqa: E402
-from tools.build import build_graph, export_backward_compatible  # noqa: E402
+from general_tools.config import Config  # noqa: E402
+from general_tools.graph import KnowledgeGraph  # noqa: E402
+from general_tools.encoder import EncoderLayer  # noqa: E402
+from general_tools.build import build_graph, export_backward_compatible  # noqa: E402
 from LLMs.deepseek import DeepSeekProvider, MockProvider  # noqa: E402
-from tools.graph_tools import ensure_tools  # noqa: E402
-from tools.agents import NodeAgent, GrowthAgent  # noqa: E402
+from general_tools.agents import NodeAgent, GrowthAgent  # noqa: E402
 from database.notes import NoteStore, Note  # noqa: E402
+from database.construct import bind_database, database_node  # noqa: E402
+from general_tools.construct import tools_node as _shared_tools_node  # noqa: E402
 from ui.visuals import interactive_html, mermaid_flowchart  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -57,6 +60,7 @@ growth_agent: GrowthAgent | None = None
 store: NoteStore | None = None
 codex_agents: dict = {}   # {agent_id: engine} for codex_normal / codex_RAG / codex_growth
 _platform: dict | None = None   # the Multi Agent platform (strict IPP v0.2.8)
+CUSTOM_GRAPH_DIR: Optional[Path] = None   # set when serving --graph DIR
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -69,8 +73,6 @@ def _make_codex_agents(provider_, store_, chat_mode: bool = False) -> dict:
     from codex_normal import create_agent as mk_normal
     from codex_RAG import create_agent as mk_rag
     from codex_growth import create_agent as mk_growth
-    from tools.api import ensure_tools as ensure_shared
-    ensure_shared()
     kw = {"chat_mode": chat_mode} if chat_mode else {}
     return {
         "codex_normal": mk_normal(graph, encoder, llm=provider_, store=store_, **kw),
@@ -91,28 +93,60 @@ def _make_provider() -> DeepSeekProvider:
         return MockProvider()
 
 
+def _auto_open_supplements(store_: NoteStore, graph_: KnowledgeGraph) -> list[dict]:
+    """Re-open the project's ACTIVE supplements (opt-in overlays persisted in
+    project.json) so main + supplements stay consistent across sessions.
+    Each open flows through the database node's guardrail envelope."""
+    if not store_.current():
+        return []
+    opened = []
+    for slug in store_.active_supplements():
+        try:
+            p = database_node().invoke(
+                "supplement", {"op": "open", "slug": slug}).payload
+            if p.get("ok"):
+                opened.append({"slug": slug, "loaded": p.get("loaded", 0),
+                               "edges_loaded": p.get("edges_loaded", 0)})
+            else:
+                logger.warning("supplement %s skipped: %s", slug,
+                               p.get("message"))
+        except ValueError as exc:  # noqa: BLE001
+            logger.warning("supplement %s skipped: %s", slug, exc)
+    return opened
+
+
 def _load_or_build(graph_dir: Optional[Path] = None) -> None:
     """Load the persisted graph if present, else build from assets.
 
-    ``graph_dir``: serve a custom graph folder (e.g. ``graph_data/cy3``)
+    ``graph_dir``: serve a custom graph folder (e.g. ``database/calabiyau3fold/graph_data``)
     containing ``knowledge_graph.json`` + ``vectors/index.json``. When set,
     the note-project merge is skipped (note projects belong to the default
-    GraphRAG graph).
+    GraphRAG graph). Canonical layout: every project owns its artifacts under
+    ``database/<project>/graph_data/`` (see database/README.md).
     """
     global graph, encoder, provider, node_agent, growth_agent, store, codex_agents
+    global CUSTOM_GRAPH_DIR
     with _lock:
+        CUSTOM_GRAPH_DIR = graph_dir
         if graph_dir is not None:
             gpath = graph_dir / "knowledge_graph.json"
             vpath = graph_dir / "vectors" / "index.json"
             graph = KnowledgeGraph(path=gpath, auto_load=False)
             encoder = EncoderLayer()
-            if gpath.exists() and vpath.exists():
+            if gpath.exists():
                 logger.info("loading custom graph from %s", graph_dir)
                 graph.load()
-                encoder.load(vpath)
+                if vpath.exists():
+                    encoder.load(vpath)
+                else:
+                    # graph exists but no vector index yet: build one from the
+                    # graph's own nodes — do NOT merge another project in
+                    for nid, node in graph._nodes.items():
+                        encoder.ingest_meta(nid, f"{node.entryname} {node.description}")
+                    encoder.save(vpath)
             else:
                 logger.info("building custom graph into %s", graph_dir)
-                from tools.build_cy3 import build_cy3_graph
+                from general_tools.build_cy3 import build_cy3_graph
                 graph, encoder = build_cy3_graph(out_dir=graph_dir)
         else:
             graph = KnowledgeGraph()
@@ -125,28 +159,49 @@ def _load_or_build(graph_dir: Optional[Path] = None) -> None:
                 logger.info("building graph from assets/")
                 graph, encoder = build_graph()
         graph.pagerank()
-        ensure_tools()
+        _shared_tools_node()
         provider = _make_provider()
         node_agent = NodeAgent(graph, encoder, llm=provider)
         growth_agent = GrowthAgent(graph, encoder, llm=provider)
         store = NoteStore()
+        # the database IPP node — the store's single IPP surface
+        # (Γ ⊩ database/IPP.json × 𝒢; the platform registers the same
+        # node into its shared GraphContext as the 44th node). Every
+        # database operation — UI, tools, agents — flows through its
+        # guardrail envelopes with hash-chained audits.
+        bind_database(store, graph)
+        database_node()
+        # the tools IPP node — the SHARED runtime's single IPP surface
+        # (Γ ⊩ tools/IPP.json × 𝒢; the 45th node of the platform). Every
+        # tool dispatch + graph/encoder/build/check operation flows
+        # through its guardrail envelopes with hash-chained audits.
+        from general_tools.construct import bind_tools, tools_node
+        bind_tools(graph, encoder)
+        tools_node()
         # chat surface = READ-ONLY agents (file-write + mutation tools disabled)
         codex_agents = _make_codex_agents(provider, store, chat_mode=True)
         # auto-reopen the last-active note project (create-and-open UX).
         # In custom-graph mode we still open the note project (so the Database
         # tab shows its notes) but skip the graph ⇄ notes merge (the custom
-        # graph is already the authoritative source).
+        # graph is already the authoritative source). In default mode the
+        # active project REPLACES the graph (its notes become the graph) so
+        # projects never accumulate into a mixed multi-graph view.
         active = store.active_project()
         if active:
             try:
                 store.open_project(active)
-                if graph_dir is None:
+                if graph_dir is None and store.list_notes():
+                    graph.clear()
                     store.load_to_graph(graph)
+                    # re-open the project's active supplements (opt-in overlays)
+                    _auto_open_supplements(store, graph)
                     graph.pagerank()
                 logger.info("note project re-opened: %s", active)
             except ValueError:
                 logger.warning("active project %s not found; starting fresh", active)
         logger.info("graph ready: %s", graph.summary().splitlines()[0])
+        # Construct the recursive agent IPP node at startup
+        _load_recursive_module()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -171,14 +226,15 @@ def static_files(filename: str):
 # ── health & config ───────────────────────────────────────────────────────────
 @app.get("/api/health")
 def health():
-    from tools.agent_specs import TOOL_SETS
+    from general_tools.agent_specs import TOOL_SETS
     return jsonify({
         "ok": True,
         "workspace": str(Config.WORKSPACE_ROOT),
         "assets": str(Config.ASSETS_DIR),
         "provider": provider.name if provider else None,
         "model": Config.get_model(),
-        "tools": [t.tool_name for t in __import__("tools.IPP", fromlist=["ToolRegistry"]).ToolRegistry.all()],
+        "available_models": Config.AVAILABLE_MODELS,
+        "tools": [d.get("function", {}).get("name") for d in _shared_tools_node().invoke("list", {}).payload.get("definitions", [])],
         "agents": [{"id": a, "tools": len(TOOL_SETS.get(a, []))} for a in AGENT_IDS],
         "graph_file": str(graph.path) if graph else None,
     })
@@ -287,18 +343,16 @@ def search():
     if not query:
         return jsonify({"error": "query required"}), 400
     with _lock:
-        nodes = [
-            {"node_id": nid,
-             "entryname": graph.get_node(nid).entryname if graph.get_node(nid) else nid,
-             "score": round(score, 4)}
-            for nid, score in encoder.search_nodes(query, k=k)
-        ]
-        chunks = [
-            {"chunk_id": c.chunk_id, "section": c.section, "text": c.text[:220],
-             "sim": round(sim, 4)}
-            for c, sim in encoder.search(query, k=k)
-        ]
-        return jsonify({"nodes": nodes, "chunks": chunks})
+        # the encoder operation flows through the tools node's guardrail
+        # envelope (ι_pre → π → Ω → ι_post → ρ → τ*) with an audit record
+        from general_tools.construct import tools_node
+        p = tools_node().invoke(
+            "encoder", {"op": "search", "query": query, "k": k}).payload
+        if not isinstance(p, dict) or not p.get("ok"):
+            return jsonify({"error": (p.get("message")
+                                       if isinstance(p, dict) else "failed")}), 500
+        return jsonify({"nodes": p.get("nodes", []),
+                        "chunks": p.get("chunks", [])})
 
 
 # ── agents ────────────────────────────────────────────────────────────────────
@@ -306,7 +360,7 @@ def search():
 def agent_list():
     """The three shared codex agents + their tool counts."""
     with _lock:
-        from tools.agent_specs import TOOL_SETS, PROMPTS
+        from general_tools.agent_specs import TOOL_SETS, PROMPTS
         return jsonify({
             "agents": [
                 {"id": a, "tools": len(TOOL_SETS.get(a, [])),
@@ -481,11 +535,18 @@ def visual_interactive():
                 return jsonify({"error": f"node not found: {anchor}"}), 404
             node = graph.get_node(nid)
             title = f"L{depth}({node.entryname})"
-        html = interactive_html(graph, anchor=nid if anchor else None,
-                                depth=depth, title=title)
-        # persist into the open project (if any)
+        colors = None
         if store and store.current():
-            out = store.project_dir / "interactive.html"
+            cp = database_node().invoke("categories", {"op": "get"}).payload
+            colors = {"default": cp.get("default", "#8aa0b0"),
+                      "map": cp.get("map", {})}
+        html = interactive_html(graph, anchor=nid if anchor else None,
+                                depth=depth, title=title,
+                                category_colors=colors)
+        # persist into the open project's graph_data/ (cached snapshot — the
+        # page itself is always generated fresh from the in-memory graph)
+        if store and store.current():
+            out = store.graph_data_dir() / "interactive.html"
             out.write_text(html, encoding="utf-8")
         return html, 200, {"Content-Type": "text/html; charset=utf-8"}
 
@@ -509,8 +570,9 @@ def visual_mermaid():
 @app.get("/api/database/projects")
 def db_projects():
     with _lock:
-        return jsonify({"projects": store.list_projects(),
-                        "current": store.current()})
+        p = database_node().invoke("project", {"op": "list"}).payload
+        return jsonify({"projects": p.get("projects", []),
+                        "current": p.get("current")})
 
 
 @app.post("/api/database/create")
@@ -521,37 +583,175 @@ def db_create():
     if not name:
         return jsonify({"error": "name required"}), 400
     with _lock:
-        try:
-            meta = store.create_project(name, description)
-            return jsonify({"ok": True, "project": meta})
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
+        p = database_node().invoke(
+            "project", {"op": "create", "name": name,
+                        "description": description}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 400
+        return jsonify({"ok": True, "project": p["project"]})
 
 
 @app.post("/api/database/open")
 def db_open():
     body = request.get_json(force=True, silent=True) or {}
     name = body.get("name", "").strip()
+    # replace=True (default): clear the live graph and load ONLY this
+    # project's notes — one project = one graph. replace=False merges the
+    # project's notes into whatever is currently loaded (union mode).
+    replace = bool(body.get("replace", True))
     if not name:
         return jsonify({"error": "name required"}), 400
     with _lock:
-        try:
-            meta = store.open_project(name)
-            # load the notes into the live graph (union)
-            result = store.load_to_graph(graph)
-            graph.pagerank()
-            graph.save()
-            return jsonify({"ok": True, "project": meta, **result})
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 404
+        # Γ ⊩ database/IPP.json: the store mutation flows through the
+        # node's guardrail envelope (project.open = open + load + persist)
+        p = database_node().invoke(
+            "project", {"op": "open", "name": name, "replace": replace}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 404
+        meta = p["project"]
+        supplements_opened = []
+        if replace:
+            # re-open the project's active supplements (opt-in overlays)
+            supplements_opened = _auto_open_supplements(store, graph)
+        graph.pagerank()
+        # In custom-graph mode the seed graph file stays authoritative —
+        # never overwrite it with another project's nodes. In default
+        # mode persist the (replaced) graph to the OPEN project's own
+        # graph_data/ (canonical layout — graph.path follows the project).
+        if CUSTOM_GRAPH_DIR is None:
+            target = store.graph_data_dir() / "knowledge_graph.json"
+            graph.path = target
+            graph.save(target)
+        return jsonify({
+            "ok": True, "project": meta, "replaced": replace,
+            "supplements_opened": supplements_opened,
+            "loaded": p.get("loaded"), "nodes": p.get("nodes"),
+            "edges": p.get("edges")})
+
+
+@app.get("/api/database/supplements")
+def db_supplements():
+    """List a project's supplement bundles (slug, name, counts, active).
+    ``?project=<slug>`` scopes to the SELECTED project without switching the
+    server's open project — so the UI dropdown always matches what the user
+    picked, never a stale server-side "current"."""
+    with _lock:
+        proj = request.args.get("project") or (store.current() if store else None)
+        if not proj:
+            return jsonify({"supplements": [], "project": None})
+        p = database_node().invoke(
+            "supplement", {"op": "list", "project": proj}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 404
+        return jsonify({"supplements": p.get("supplements", []),
+                        "project": proj})
+
+
+@app.post("/api/database/supplement/create")
+def db_supplement_create():
+    body = request.get_json(force=True, silent=True) or {}
+    name = body.get("name", "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    proj = body.get("project") or (store.current() if store else None)
+    with _lock:
+        if not proj:
+            return jsonify({"error": "no project open"}), 400
+        p = database_node().invoke(
+            "supplement", {"op": "create", "name": name,
+                           "description": body.get("description", ""),
+                           "project": proj}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 400
+        return jsonify({"ok": True, "supplement": p["supplement"]})
+
+
+@app.post("/api/database/supplement/open")
+def db_supplement_open():
+    """Merge a supplement's notes into the live graph + persist (the node's
+    supplement.open flows through the guardrail envelope; project switching
+    is handled inside the impl — one store surface).
+    ``project`` optional — defaults to the open project."""
+    body = request.get_json(force=True, silent=True) or {}
+    slug = body.get("supplement", "").strip()
+    proj = body.get("project") or (store.current() if store else None)
+    if not slug:
+        return jsonify({"error": "supplement slug required"}), 400
+    with _lock:
+        if not proj:
+            return jsonify({"error": "no project open"}), 400
+        p = database_node().invoke(
+            "supplement", {"op": "open", "slug": slug, "project": proj}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 404
+        return jsonify({"ok": True, "supplement": slug,
+                        "loaded": p.get("loaded", 0),
+                        "edges_loaded": p.get("edges_loaded", 0)})
+
+
+@app.post("/api/database/supplement/close")
+def db_supplement_close():
+    """Remove a supplement's nodes/edges from the live graph + persist
+    (via the database node's guardrail envelope).
+    ``project`` optional — defaults to the open project."""
+    body = request.get_json(force=True, silent=True) or {}
+    slug = body.get("supplement", "").strip()
+    proj = body.get("project") or (store.current() if store else None)
+    if not slug:
+        return jsonify({"error": "supplement slug required"}), 400
+    with _lock:
+        if not proj:
+            return jsonify({"error": "no project open"}), 400
+        p = database_node().invoke(
+            "supplement", {"op": "close", "slug": slug, "project": proj}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 404
+        return jsonify({"ok": True, "supplement": slug,
+                        "removed_nodes": p.get("removed_nodes", 0),
+                        "removed_edges": p.get("removed_edges", 0)})
+
+
+@app.get("/api/database/categories")
+def db_categories():
+    """A project's category→color map (categories.json). ``?project=`` scopes
+    to the SELECTED project without switching; defaults to the open one."""
+    with _lock:
+        proj = request.args.get("project") or (store.current() if store else None)
+        if not proj:
+            return jsonify({"project": None, "default": "#8aa0b0", "map": {}})
+        p = database_node().invoke(
+            "categories", {"op": "get", "project": proj}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 404
+        return jsonify({"project": p.get("project"),
+                        "default": p.get("default"),
+                        "map": p.get("map", {})})
+
+
+@app.post("/api/database/categories")
+def db_categories_update():
+    """Update the open project's category→color map: {map: {cat: hex}, default?}."""
+    body = request.get_json(force=True, silent=True) or {}
+    with _lock:
+        if not store or not store.current():
+            return jsonify({"error": "no project open"}), 400
+        p = database_node().invoke(
+            "categories", {"op": "update",
+                           "map": body.get("map") or {},
+                           "default": body.get("default")}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 400
+        return jsonify({"ok": True, "project": p.get("project"),
+                        "default": p.get("default"),
+                        "map": p.get("map", {})})
 
 
 @app.get("/api/database/notes")
 def db_notes():
     with _lock:
-        if not store.current():
-            return jsonify({"notes": [], "project": None})
-        return jsonify({"notes": store.list_notes(), "project": store.current()})
+        p = database_node().invoke("nodes", {"op": "list_notes"}).payload
+        return jsonify({"notes": p.get("notes", []),
+                        "project": p.get("project")})
 
 
 @app.get("/api/database/note/<node_id>")
@@ -559,11 +759,13 @@ def db_note(node_id: str):
     with _lock:
         if not store.current():
             return jsonify({"error": "no project open"}), 400
-        try:
-            note = store.get_note(node_id)
-            return jsonify(note.to_dict())
-        except FileNotFoundError:
-            return jsonify({"error": f"note not found: {node_id}"}), 404
+        p = database_node().invoke(
+            "nodes", {"op": "get_note", "node_id": node_id}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message",
+                                            f"note not found: {node_id}")}), \
+                (404 if p.get("error") == "not_found" else 400)
+        return jsonify(p["note"])
 
 
 @app.post("/api/database/note/update")
@@ -575,30 +777,38 @@ def db_note_update():
     with _lock:
         if not store.current():
             return jsonify({"error": "no project open"}), 400
-        try:
-            note = store.get_note(node_id)
-        except FileNotFoundError:
-            return jsonify({"error": f"note not found: {node_id}"}), 404
+        payload = {"node_id": node_id, "op": "update_note"}
         if "content" in body:
-            note.content = body["content"]
+            payload["content"] = body["content"]
         if "description" in body:
-            note.description = body["description"]
-        author = body.get("author", "ui")
-        summary = body.get("summary", "Updated via web UI.")
-        note = store.save_note(note, author=author, summary=summary)
-        return jsonify({"ok": True, "note": note.to_dict()})
+            payload["description"] = body["description"]
+        payload["author"] = body.get("author", "ui")
+        payload["summary"] = body.get("summary", "Updated via web UI.")
+        p = database_node().invoke("nodes", payload).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), \
+                (404 if p.get("error") == "not_found" else 400)
+        return jsonify({"ok": True, "note": p["note"]})
 
 
 @app.post("/api/database/sync")
 def db_sync():
-    """Write the current graph's nodes as .md notes (idempotent)."""
+    """Write the current graph's nodes as .md notes (idempotent).
+    Flows through the database node's guardrail envelope (graph.sync)."""
     body = request.get_json(force=True, silent=True) or {}
     with _lock:
         if not store.current():
             return jsonify({"error": "no project open"}), 400
-        result = store.sync_from_graph(graph, force=body.get("force", False))
-        graph.save()
-        return jsonify({"ok": True, **result})
+        p = database_node().invoke(
+            "graph", {"op": "sync",
+                      "force": bool(body.get("force", False))}).payload
+        if not p.get("ok"):
+            return jsonify({"error": p.get("message", "failed")}), 400
+        target = store.graph_data_dir() / "knowledge_graph.json"
+        graph.path = target
+        return jsonify({"ok": True, "created": p.get("created"),
+                        "updated": p.get("updated"),
+                        "skipped": p.get("skipped", 0)})
 
 
 @app.post("/api/graph/rebuild")
@@ -606,8 +816,8 @@ def rebuild():
     global graph, encoder, node_agent, growth_agent, codex_agents, provider, _platform
     with _lock:
         _platform = None   # agents hold the old graph — rebuild the platform
-        if graph.path != Config.GRAPH_JSON:
-            from tools.build_cy3 import build_cy3_graph
+        if CUSTOM_GRAPH_DIR is not None:
+            from general_tools.build_cy3 import build_cy3_graph
             graph, encoder = build_cy3_graph(out_dir=graph.path.parent)
         else:
             graph, encoder = build_graph()
@@ -615,6 +825,13 @@ def rebuild():
         node_agent = NodeAgent(graph, encoder, llm=provider)
         growth_agent = GrowthAgent(graph, encoder, llm=provider)
         codex_agents = _make_codex_agents(provider, store, chat_mode=True)
+        # the database node reads the graph LIVE from the shared bridge —
+        # rebind so its handlers operate on the fresh graph (audit history
+        # is preserved: one node, one audit trail per process)
+        bind_database(store, graph)
+        # same for the tools node (the shared runtime's live bindings)
+        from general_tools.construct import bind_tools
+        bind_tools(graph, encoder)
         return jsonify({
             "ok": True,
             "nodes": len(graph._nodes),
@@ -647,6 +864,39 @@ def _ensure_platform():
                         _platform["portal_node"].node_id,
                         len(_platform["runtimes"]))
     return _platform
+
+
+def _refresh_platform() -> dict:
+    """Stop the current Multi Agent platform and rebuild it fresh.
+
+    Stops the conversation responder + all agent runtimes (queued tasks
+    dropped), then rebuilds the 43-node platform (same GraphContext
+    pattern) — used by the Settings tab's "refresh services" button.
+    """
+    global _platform
+    with _lock:
+        if _platform is not None:
+            try:
+                _platform["swarm"].stop_responder()
+                _platform["swarm"].stop()
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("platform stop during refresh: %s", exc)
+            _platform = None
+        from IPP_Social.integration import build_platform
+        _platform = build_platform(graph, encoder, provider, store,
+                                   agent_chat_mode=True, max_concurrent=4)
+        n_nodes = len(_platform["ctx"].registry)
+        logger.info("platform refreshed: %d IPP nodes in 𝒢 (portal=%s, "
+                    "swarm=%d runtimes)", n_nodes,
+                    _platform["portal_node"].node_id,
+                    len(_platform["runtimes"]))
+        return {
+            "ok": True,
+            "nodes": n_nodes,
+            "runtimes": len(_platform["runtimes"]),
+            "settings": _platform.get("settings")
+            and _platform["settings"].all() or None,
+        }
 
 
 def _portal_invoke(channel: str, payload: dict):
@@ -727,6 +977,21 @@ def social_clear_board():
             "op": "clear_chat", "scope": body.get("scope", "all")}))
     except Exception as exc:  # noqa: BLE001
         logger.exception("social board clear failed")
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/services/refresh")
+def services_refresh():
+    """Refresh the Multi Agent services (stop + rebuild the platform).
+
+    Stops the conversation responder and all agent runtimes, then
+    rebuilds the 43-node platform fresh (Settings tab → refresh).
+    """
+    try:
+        result = _refresh_platform()
+        return jsonify(result)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("services refresh failed")
         return jsonify({"error": str(exc)}), 500
 
 
@@ -848,6 +1113,214 @@ def swarm_events():
                              "X-Accel-Buffering": "no"})
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Recursive Agent portal — IPP v0.2.8 interface
+#
+# The Flask server does NOT import agent internals. ALL operations go
+# through the recursive_agent_module IPP node's guardrail envelope:
+#   server.py  →  ra_node.invoke(channel, payload)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_ra_node = None  # constructed by _load_or_build / _load_recursive_module
+
+
+def _load_recursive_module():
+    """Construct the recursive agent IPP node (called once at startup)."""
+    global _ra_node
+    from recursive_agents.recursive_agent_module._ctor import construct_ra_node
+    _ra_node = construct_ra_node(_lock, graph=graph, encoder=encoder, provider=provider)
+
+
+def _ra_invoke(channel: str, payload: dict) -> dict:
+    """Invoke a channel on the recursive agent IPP node.
+    Returns the payload dict from the response."""
+    try:
+        if _ra_node is None:
+            _load_recursive_module()
+        result = _ra_node.invoke(channel, payload)
+        p = result.payload
+        return p if isinstance(p, dict) else {"ok": False, "error": str(p)}
+    except Exception as exc:
+        import traceback
+        logger.exception("ra_invoke(%s) failed", channel)
+        return {"ok": False, "error": str(exc),
+                "traceback": traceback.format_exc()[-800:]}
+
+
+@app.get("/api/recursive/chain")
+def recursive_chain():
+    return jsonify(_ra_invoke("chain", {}))
+
+
+@app.post("/api/recursive/chat")
+def recursive_chat():
+    """Simple chat with a recursive agent — returns full trace + final answer."""
+    import traceback as _tb, re as _re
+    body = request.get_json(force=True, silent=True) or {}
+    agent_id = (body.get("agent_id") or "").strip()
+    message = (body.get("message") or "").strip()
+    live = body.get("live", True)
+    model_id = (body.get("model") or Config.DEFAULT_MODEL).strip()
+    if not agent_id or not message:
+        return jsonify({"ok": False, "error": "agent_id and message required"}), 400
+
+    try:
+        with _lock:
+            from recursive_agents.agent_a1.agent_a1_tools.tool_registry import AgentA1Toolkit
+            from recursive_agents.runtime.engine import RecursiveAgentEngine
+            from LLMs.deepseek import MockProvider
+
+            # Per-request provider: independent per-portal model selection
+            llm_for_chat = DeepSeekProvider(model=model_id) if live else MockProvider()
+            tk = AgentA1Toolkit(agent_id=agent_id, ws_root=str(Config.WORKSPACE_ROOT),
+                                graph=graph, encoder=encoder, llm=llm_for_chat)
+            tk.register_all()
+            m = _re.search(r"agent_a(\d+)", agent_id)
+            level = int(m.group(1)) if m else 1
+
+            engine = RecursiveAgentEngine(graph=graph, encoder=encoder, llm=llm_for_chat,
+                                          agent_id=agent_id, level=level, toolkit=tk)
+            # Use chat_stream for full trace visibility, deduplicating text/message
+            trace_events = []
+            answer = ""
+            last_content = None  # deduplicate consecutive identical content
+            for event in engine.chat_stream(message):
+                step = {"type": event.type}
+                content_str = None
+
+                if event.tool:
+                    step["tool"] = event.tool
+                    step["args"] = event.args
+                if event.content and event.type in ("text", "message"):
+                    content_str = str(event.content)
+                    # Accumulate for final answer (text events only)
+                    if event.type == "text" and event.content:
+                        answer += (event.content or "")
+                    # Also accumulate from messages for non-tool answers
+                    if event.type == "message" and (event.content or "") and not answer:
+                        answer += (event.content or "")
+                if event.type == "thinking":
+                    content_str = str(event.content or "")
+                    step["content"] = content_str
+                if event.type == "tool_result":
+                    content_str = str(event.content or "")[:1000]
+                    step["content"] = content_str
+                if event.error:
+                    step["error"] = event.error
+
+                # Deduplicate: skip if same content as the previous entry
+                if content_str is not None and content_str == last_content:
+                    continue
+                last_content = content_str
+
+                if content_str is not None and event.type in ("text", "message"):
+                    step["content"] = content_str[:2000]
+
+                if step.get("content") or step.get("tool") or step.get("error"):
+                    trace_events.append(step)
+
+            # Strip the duplicate from answer (engine often wraps text in both message+text)
+            answer = answer.strip()[:5000]
+            # Remove duplicate paragraphs
+            paragraphs = [p.strip() for p in answer.split("\n\n") if p.strip()]
+            seen = set()
+            deduped = []
+            for p in paragraphs:
+                key = p[:80]
+                if key not in seen:
+                    seen.add(key)
+                    deduped.append(p)
+            answer = "\n\n".join(deduped)
+
+            return jsonify({
+                "ok": True, "agent_id": agent_id,
+                "answer": answer.strip()[:5000],
+                "trace": trace_events[-60:],
+                "tool_calls": sum(1 for e in trace_events if e.get("type") == "tool_call"),
+                "tools_used": sorted(set(e.get("tool","") for e in trace_events if e.get("tool"))),
+            })
+    except Exception as exc:
+        return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}",
+                       "traceback": _tb.format_exc()[-800:]}), 500
+
+
+@app.route("/api/recursive/instruct", methods=["POST"])
+
+def recursive_instruct():
+    import sys as _sys
+    body = request.get_json(force=True, silent=True) or {}
+    agent_id = (body.get("agent_id") or "").strip()
+    task = (body.get("task") or "").strip()
+    model_id = (body.get("model") or Config.DEFAULT_MODEL).strip()
+    _sys.stderr.write(f"RECURSIVE_INSTRUCT: agent={agent_id} task={task[:50]}\n")
+    _sys.stderr.flush()
+    
+    if not agent_id or not task:
+        return jsonify({"ok": False, "error": "agent_id and task required"}), 400
+
+    try:
+        with _lock:
+            # Step 1: import toolkit
+            from recursive_agents.agent_a1.agent_a1_tools.tool_registry import AgentA1Toolkit
+            tk = AgentA1Toolkit(agent_id=agent_id, ws_root=str(Config.WORKSPACE_ROOT),
+                                graph=graph, encoder=encoder,
+                                llm=DeepSeekProvider(model=model_id))
+            tk.register_all()
+            _sys.stderr.write(f"RECURSIVE_INSTRUCT: toolkit ready ({tk.count()} tools)\n")
+            _sys.stderr.flush()
+
+            # Step 2: create engine
+            from recursive_agents.runtime.engine import RecursiveAgentEngine
+            import re
+            m = re.search(r"agent_a(\d+)", agent_id)
+            level = int(m.group(1)) if m else 1
+            engine = RecursiveAgentEngine(graph=graph, encoder=encoder,
+                                          llm=DeepSeekProvider(model=model_id),
+                                          agent_id=agent_id, level=level, toolkit=tk)
+            _sys.stderr.write(f"RECURSIVE_INSTRUCT: engine ready, starting chat_stream\n")
+            _sys.stderr.flush()
+
+            # Step 3: run
+            answer = engine.chat(task)
+            _sys.stderr.write(f"RECURSIVE_INSTRUCT: done, answer={answer[:100]}\n")
+            _sys.stderr.flush()
+
+            return jsonify({"ok": True, "agent_id": agent_id, "answer": answer[:2000],
+                           "chain": list(tk.chain), "constructed": sorted(tk.constructed)})
+
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        _sys.stderr.write(f"RECURSIVE_INSTRUCT FAIL: {exc}\n{tb[-600:]}\n")
+        _sys.stderr.flush()
+        return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}",
+                       "traceback": tb[-1000:]}), 500
+
+
+@app.post("/api/recursive/instruct-offline")
+def recursive_instruct_offline():
+    body = request.get_json(force=True, silent=True) or {}
+    payload = _ra_invoke("instruct_offline", body)
+    status = 200 if payload.get("ok") else 500
+    return jsonify(payload), status
+
+
+@app.post("/api/recursive/verify")
+def recursive_verify():
+    body = request.get_json(force=True, silent=True) or {}
+    payload = _ra_invoke("verify", body)
+    status = 200 if payload.get("ok") else 500
+    return jsonify(payload), status
+
+
+@app.post("/api/recursive/diff")
+def recursive_diff():
+    body = request.get_json(force=True, silent=True) or {}
+    payload = _ra_invoke("diff", body)
+    status = 200 if payload.get("ok") else 500
+    return jsonify(payload), status
+
+
 # ── main ──────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(description="Graph Knowledge Network UI")
@@ -857,7 +1330,8 @@ def main() -> None:
     parser.add_argument(
         "--graph", default=None, metavar="DIR",
         help="serve a custom graph folder with knowledge_graph.json + "
-             "vectors/index.json (e.g. graph_data/cy3 for the Calabi-Yau graph)",
+             "vectors/index.json (e.g. database/calabiyau3fold/graph_data "
+             "for the Calabi-Yau graph)",
     )
     args = parser.parse_args()
 

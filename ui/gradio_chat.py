@@ -21,13 +21,12 @@ if str(_WS) not in sys.path:
 
 import gradio as gr  # noqa: E402
 
-from tools.config import Config  # noqa: E402
-from tools.graph import KnowledgeGraph  # noqa: E402
-from tools.encoder import EncoderLayer  # noqa: E402
+from general_tools.config import Config  # noqa: E402
+from general_tools.graph import KnowledgeGraph  # noqa: E402
+from general_tools.encoder import EncoderLayer  # noqa: E402
 from LLMs.deepseek import DeepSeekProvider, MockProvider  # noqa: E402
 from database.notes import NoteStore  # noqa: E402
-from tools.graph_tools import ensure_tools  # noqa: E402
-from tools.api import ensure_tools as ensure_shared_tools  # noqa: E402
+from general_tools.construct import tools_node as _shared_tools_node
 from codex_growth import create_agent as make_growth  # noqa: E402
 from codex_RAG import create_agent as make_rag  # noqa: E402
 from codex_normal import create_agent as make_normal  # noqa: E402
@@ -51,7 +50,7 @@ def load_graph():
         graph.load()
         encoder.load()
     else:
-        from tools.build import build_graph
+        from general_tools.build import build_graph
         graph, encoder = build_graph()
     graph.pagerank()
     return graph, encoder
@@ -68,7 +67,7 @@ def _load():
             graph.pagerank()
         except ValueError:
             pass
-    ensure_tools()
+    _shared_tools_node()
     ensure_shared_tools()
     llm = _make_provider()
     agents = {

@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_07_Iris",
+  "name": "Iris",
+  "bio": "Iris is sharp and quick-witted, connecting ideas fast and speaking up early. She contributes with energy and insight, keeping discussions active and productive without dominating them.",
+  "status": "active",
+  "capacity": {
+    "math": 60.0,
+    "physics": 68.0,
+    "engineering": 59.0,
+    "biology": 76.0,
+    "genomics": 89.0,
+    "reasoning": 87.0,
+    "research": 54.0,
+    "social": 45.0,
+    "play": 66.0,
+    "creativity": 78.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 63.0,
+      "variance": 11.0
+    },
+    "physics": {
+      "mean": 67.0,
+      "variance": 6.0
+    },
+    "engineering": {
+      "mean": 62.0,
+      "variance": 9.0
+    },
+    "biology": {
+      "mean": 81.0,
+      "variance": 6.0
+    },
+    "genomics": {
+      "mean": 93.0,
+      "variance": 13.0
+    },
+    "reasoning": {
+      "mean": 87.0,
+      "variance": 5.0
+    },
+    "research": {
+      "mean": 56.0,
+      "variance": 16.0
+    },
+    "social": {
+      "mean": 42.0,
+      "variance": 6.0
+    },
+    "play": {
+      "mean": 68.0,
+      "variance": 15.0
+    },
+    "creativity": {
+      "mean": 81.0,
+      "variance": 13.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 27.0,
+      "y": 96.0,
+      "z": 4.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

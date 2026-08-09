@@ -1,5 +1,5 @@
 """
-ipp.IPP_constructor — the IPP Constructor Γ (the independent agent).
+IPP.IPP_constructor — the IPP Constructor Γ (the independent agent).
 
 Per IPP v0.2.8 §8: Γ ∈ 𝒜, Γ ⊩ F × 𝒢 ↝ ((Ω_k, Ξ_k[τ*_k]) for k=1..n, ℰ_int).
 
@@ -26,13 +26,13 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from ipp.IPP_executor import IPPExecutor
-from ipp.IPP_file import IPPFile
-from ipp.IPP_object import IPPObject
-from ipp.IPP_ports import Port
-from ipp.IPP_registry import GraphContext
+from IPP.IPP_executor import IPPExecutor
+from IPP.IPP_file import IPPFile
+from IPP.IPP_object import IPPObject
+from IPP.IPP_ports import Port
+from IPP.IPP_registry import GraphContext
 
-logger = logging.getLogger("ipp.IPP_constructor")
+logger = logging.getLogger("IPP.IPP_constructor")
 
 
 class IPPNode:
@@ -79,8 +79,8 @@ class IPPNode:
         return self.objects[channel_id].recall(new_decl)
 
     def verify(self) -> list[str]:
-        """17-invariant verification (ipp.IPP_verify). Empty list = all pass."""
-        from ipp.IPP_verify import verify_node
+        """17-invariant verification (IPP.IPP_verify). Empty list = all pass."""
+        from IPP.IPP_verify import verify_node
         return verify_node(self)
 
     def summary(self) -> str:

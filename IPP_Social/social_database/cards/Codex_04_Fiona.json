@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_04_Fiona",
+  "name": "Fiona",
+  "bio": "Fiona is confident and action-oriented — the one who volunteers first. She communicates directly, drives tasks to completion, and keeps the team moving with clear, cheerful direction.",
+  "status": "active",
+  "capacity": {
+    "math": 58.0,
+    "physics": 70.0,
+    "engineering": 65.0,
+    "biology": 76.0,
+    "genomics": 61.0,
+    "reasoning": 52.0,
+    "research": 80.0,
+    "social": 72.0,
+    "play": 85.0,
+    "creativity": 88.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 53.0,
+      "variance": 6.0
+    },
+    "physics": {
+      "mean": 69.0,
+      "variance": 3.0
+    },
+    "engineering": {
+      "mean": 66.0,
+      "variance": 14.0
+    },
+    "biology": {
+      "mean": 72.0,
+      "variance": 16.0
+    },
+    "genomics": {
+      "mean": 64.0,
+      "variance": 12.0
+    },
+    "reasoning": {
+      "mean": 48.0,
+      "variance": 7.0
+    },
+    "research": {
+      "mean": 77.0,
+      "variance": 8.0
+    },
+    "social": {
+      "mean": 74.0,
+      "variance": 10.0
+    },
+    "play": {
+      "mean": 85.0,
+      "variance": 12.0
+    },
+    "creativity": {
+      "mean": 86.0,
+      "variance": 13.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 91.0,
+      "y": 80.0,
+      "z": 57.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

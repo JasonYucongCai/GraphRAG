@@ -10,12 +10,12 @@ summarizes local graphs to answer queries — grounded in the graph
 | Path | Role |
 |---|---|
 | `engine/__init__.py` | `CodexRAGEngine` (AgentEngine subclass) + `construct_engine_node()` |
-| `engine/ipp.json` | the engine node (𝔉): channels `ground` · `chat` · `chat_stream` + internal **blocking** edge `ground → chat` |
+| `engine/IPP.json` | the engine node (𝔉): channels `ground` · `chat` · `chat_stream` + internal **blocking** edge `ground → chat` |
 | `engine/IPP_object.py` | the Objects (Ω_k): `make_ground_handler` / `make_chat_handler` / `make_chat_stream_handler` |
 | `engine/IPP_executor.py` | the Executors (Ξ_k): `AgentExecutor` (trace/tool-call audit extras) |
-| `tools/__init__.py` | `construct_tools_node()` — the tools node (Γ ⊩ `tools/ipp.json`) |
-| `tools/ipp.json` | the tools node (𝔉): channels `invoke` · `list` · `describe`, restricted to the retrieval-only RAG tool set |
-| `tools/IPP_object.py` | the Objects (Ω_k): four-phase lifecycle invocation via `tools.IPP.ToolRegistry` |
+| `tools/__init__.py` | `construct_tools_node()` — the tools node (Γ ⊩ `tools/IPP.json`) |
+| `tools/IPP.json` | the tools node (𝔉): channels `invoke` · `list` · `describe`, restricted to the retrieval-only RAG tool set |
+| `tools/IPP_object.py` | the Objects (Ω_k): op-dispatch handlers over `tools.impl` |
 | `tools/IPP_executor.py` | the Executors (Ξ_k): `ToolExecutor` (tool identity in the audit) |
 | `system_prompt.md` | the RAG-tailored system prompt |
 | `__init__.py` | `create_agent()` — builds engine + tools + llm nodes through Γ, attaches `engine.node` |

@@ -1,5 +1,5 @@
 """
-ipp.IPP_executor — the IPP Executor Ξ_k (edge connector / runtime enforcer).
+IPP.IPP_executor — the IPP Executor Ξ_k (edge connector / runtime enforcer).
 
 Per IPP v0.2.8 §5:
 
@@ -30,10 +30,10 @@ import logging
 import time
 from typing import Any, Callable, Optional
 
-from ipp.IPP_object import IPPObject, ACTIVE
-from ipp.IPP_ports import Envelope, GuardedOutput, payload_hash
+from IPP.IPP_object import IPPObject, ACTIVE
+from IPP.IPP_ports import Envelope, GuardedOutput, payload_hash
 
-logger = logging.getLogger("ipp.IPP_executor")
+logger = logging.getLogger("IPP.IPP_executor")
 
 # Error modes per Axiom X2
 RETRY, FALLBACK, ESCALATE = "retry", "fallback", "escalate"

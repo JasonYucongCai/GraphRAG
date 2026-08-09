@@ -46,7 +46,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/codex_RAG_engine.ground.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/codex_RAG_engine.ground.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -104,7 +104,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/codex_RAG_engine.chat.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/codex_RAG_engine.chat.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -165,7 +165,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/codex_RAG_engine.chat_stream.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/codex_RAG_engine.chat_stream.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {

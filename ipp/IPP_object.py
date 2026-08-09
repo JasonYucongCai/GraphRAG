@@ -1,5 +1,5 @@
 """
-ipp.IPP_object — the IPP Object Ω_k (the node): owns the computation.
+IPP.IPP_object — the IPP Object Ω_k (the node): owns the computation.
 
 Per IPP v0.2.8 §4:
 
@@ -21,7 +21,7 @@ import logging
 import time
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger("ipp.IPP_object")
+logger = logging.getLogger("IPP.IPP_object")
 
 # Lifecycle states (§4.3)
 UNBORN, ACTIVE, IMPROVING, DRAINING, RETIRED = \

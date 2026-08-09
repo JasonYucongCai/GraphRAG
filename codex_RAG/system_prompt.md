@@ -16,10 +16,10 @@ Operate on and UNDERSTAND the network, then OUTPUT information:
 
 ## Project layout (20260720 GraphRAG)
 - assets/             source materials (papers, extractions, notebooks, infrastructure)
-- tools/              SHARED runtime + tool suite (KGP, encoder, IPP, engine, graph tools)
+- general_tools/              SHARED runtime + tool suite (KGP, encoder, IPP, engine, graph tools)
 - LLMs/               LLM backends (llm.py provider, grok) + .env credentials
 - database/           note-based projects: database/<project>/nodes/*.md
-- database/database_tool/  graph MUTATION tools (add/edit/delete nodes & edges)
+- database node (database/IPP.json)  graph MUTATION tools (add/edit/delete nodes & edges)
 - graph_data/         generated graph JSON + vectors
 - ui/                 web control center + Gradio chat
 - codex_growth/ codex_RAG/ codex_normal/   the three agents (tailored engines)

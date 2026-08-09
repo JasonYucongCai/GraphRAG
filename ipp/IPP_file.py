@@ -1,5 +1,5 @@
 """
-ipp.IPP_file — the IPP Json File (F): static, declarative specification.
+IPP.IPP_file — the IPP Json File (F): static, declarative specification.
 
 Implements §2 of IPP_v0.2.8_Specification.md:
 
@@ -24,9 +24,9 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from ipp.IPP_schema import IPP_JSON_SCHEMA, IPP_SCHEMA_URI, IPP_VERSION
+from IPP.IPP_schema import IPP_JSON_SCHEMA, IPP_SCHEMA_URI, IPP_VERSION
 
-logger = logging.getLogger("ipp.IPP_file")
+logger = logging.getLogger("IPP.IPP_file")
 
 # Keys that would smuggle runtime logic into F (I1 violation)
 _RUNTIME_KEYS = {"code", "python", "script", "exec", "eval", "lambda",

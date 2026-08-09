@@ -18,9 +18,14 @@
     <nav id="topnav">
       <button class="topnav-tab active" data-view="control">🖥 Control Center</button>
       <button class="topnav-tab" data-view="multiagent">🤝 Multi Agent</button>
+      <button class="topnav-tab" data-view="recursive">🔄 Recursive Agent</button>
     </nav>
     <div class="top-actions">
-      <span id="provider-badge" class="badge">…</span>
+      <button id="provider-badge" class="badge" title="Click to change LLM model">…</button>
+      <div id="model-selector" class="model-dropdown hidden">
+        <div class="model-dropdown-title">Select LLM Model</div>
+        <div id="model-dropdown-list"></div>
+      </div>
       <button id="btn-rebuild" class="btn ghost" title="Rebuild graph from assets/">↻ rebuild</button>
       <button id="btn-refresh" class="btn ghost" title="Refresh">⟳ refresh</button>
     </div>
@@ -131,7 +136,9 @@
             <div class="row" style="margin:2px 0 6px">
               <button id="ma-pick-all" class="btn chip">select all</button>
               <button id="ma-pick-none" class="btn chip">clear</button>
+              <button id="ma-pick-update" class="btn primary" style="font-size:10px;padding:3px 12px">✅ update team</button>
             </div>
+            <div id="ma-pick-status" class="status" style="margin-bottom:4px"></div>
             <div id="ma-agent-pick" class="ma-agent-pick"></div>
           </div>
 
@@ -210,7 +217,81 @@
             <button id="ma-save-settings" class="btn primary">💾 Save settings</button>
             <button id="ma-reset-settings" class="btn ghost">↺ defaults</button>
           </div>
+          <div class="field" style="margin-top:10px; border-top:1px dashed var(--border); padding-top:10px">
+            <label>🔄 Refresh the Multi Agent services</label>
+            <div class="muted" style="font-size:10px">Stops all running agents + the conversation loop, then rebuilds the 43-node platform (settings are kept). Use after changing anything that needs a fresh swarm.</div>
+            <button id="ma-refresh-services" class="btn danger" title="Stop all agents and rebuild the Multi Agent services">🔄 Refresh services</button>
+          </div>
           <div id="ma-settings-status" class="status"></div>
+        </div>
+      </section>
+
+      <!-- Recursive Agent tab (recursive agent chain portal) -->
+      <section id="tab-recursiveagent" class="tabpane">
+        <div class="ra-subnav">
+          <button class="ra-subtab active" data-sub="chain">⛓ Chain</button>
+          <button class="ra-subtab" data-sub="instruct">📋 Instruct</button>
+          <button class="ra-subtab" data-sub="verify">✅ Verify</button>
+        </div>
+
+        <!-- Chain: the recursive agent tree -->
+        <div id="ra-r-chain" class="ra-rpane active">
+          <div class="ra-chain" id="ra-chain-view">
+            <div class="muted">loading chain…</div>
+          </div>
+        </div>
+
+        <!-- Instruct: send a task to an agent -->
+        <div id="ra-r-instruct" class="ra-rpane">
+          <div class="field">
+            <label>Select agent to instruct</label>
+            <select id="ra-instruct-agent">
+              <option value="">— choose agent —</option>
+              <option value="agent_a1">agent_a1 (level 1)</option>
+              <option value="agent_a2">agent_a2 (level 2)</option>
+              <option value="agent_a3">agent_a3 (level 3)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Task</label>
+            <div class="muted" style="font-size:10px; margin-bottom:4px">
+              The agent will follow its operating procedure. For construction:
+              "Create the next recursive agent, agent_aX. Follow your operating
+              procedure…"
+            </div>
+            <textarea id="ra-instruct-task" rows="4" placeholder="e.g. Create the next recursive agent, agent_a4..."></textarea>
+          </div>
+          <div class="row">
+            <button id="ra-instruct-send" class="btn primary">▶ Instruct Agent (Live LLM)</button>
+            <button id="ra-instruct-send-offline" class="btn" title="Run deterministically without LLM">⚡ Quick (no LLM)</button>
+          </div>
+          <div id="ra-instruct-status" class="status"></div>
+        </div>
+
+        <!-- Verify: run all checks on an agent -->
+        <div id="ra-r-verify" class="ra-rpane">
+          <div class="field">
+            <label>Agent to verify</label>
+            <select id="ra-verify-agent">
+              <option value="agent_a1">agent_a1 (level 1)</option>
+              <option value="agent_a2">agent_a2 (level 2)</option>
+              <option value="agent_a3">agent_a3 (level 3)</option>
+            </select>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button id="ra-verify-run" class="btn primary">✅ Run all checks</button>
+            <button id="ra-verify-single" class="btn">🔍 Check one</button>
+            <select id="ra-verify-check" class="grow">
+              <option value="all">All checks</option>
+              <option value="check_tool_count">Tool count >= 50</option>
+              <option value="check_recursive_capability">Recursive capability (8 tools)</option>
+              <option value="evaluate_engine_comprehensiveness">Engine comprehensiveness</option>
+              <option value="agent_evaluate">IPP invariants</option>
+              <option value="agent_test">Pipeline test</option>
+            </select>
+          </div>
+          <div id="ra-verify-results" class="status"></div>
+          <div id="ra-verify-detail" class="list" style="margin-top:8px"></div>
         </div>
       </section>
 
@@ -222,7 +303,37 @@
           <div class="row">
             <select id="db-project-select"><option value="">— none open —</option></select>
             <button id="btn-db-open" class="btn">Open</button>
+            <label style="font-size:11px;display:flex;align-items:center;gap:4px">
+              <input type="checkbox" id="db-merge-check" style="margin:0">
+              merge (keep current graph)
+            </label>
           </div>
+          <div class="meta" style="font-size:11px;margin-top:4px">
+            Opening a project replaces the current graph with that project's notes (one
+            project = one graph). Tick "merge" to add the notes to the graph instead.
+          </div>
+        </div>
+        <div class="field" style="border-top:1px dashed var(--border); padding-top:8px; margin-top:8px">
+          <label>OpenSupplement <span class="muted">(merge a supplement graph into this project)</span></label>
+          <div class="row">
+            <select id="db-supplement-select"><option value="">— no supplements —</option></select>
+            <button id="btn-db-supp-open" class="btn" title="merge the selected supplement into the current graph">OpenSupplement</button>
+            <button id="btn-db-supp-close" class="btn ghost" title="remove the selected supplement's nodes/edges from the graph">✕ close</button>
+          </div>
+          <div class="meta" style="font-size:11px;margin-top:4px">
+            Supplements are opt-in overlays: their notes live in
+            <code>database/&lt;project&gt;/supplement/&lt;slug&gt;/</code> and merge into the
+            current graph (main nodes win on id collisions). Active supplements
+            re-open automatically with the project.
+          </div>
+        </div>
+        <div class="field">
+          <label>Create supplement</label>
+          <div class="row">
+            <input id="db-supp-create-name" placeholder="supplement name">
+            <button id="btn-db-supp-create" class="btn primary">Create</button>
+          </div>
+          <input id="db-supp-create-desc" placeholder="description (optional)" style="margin-top:6px">
         </div>
         <div class="field">
           <label>Create new project</label>
@@ -309,6 +420,71 @@
           </div>
         </div>
       </div>
+
+      <!-- Recursive Agent stage: agent process + chain construction results -->
+      <div id="ra-stage" class="hidden">
+        <div id="ra-stage-toolbar">
+          <h3>🔄 Recursive Agent</h3>
+          <span id="ra-stage-stats" class="info"></span>
+        </div>
+        <div class="ma-rightnav">
+          <button class="ra-rtab active" data-r="chat">💬 Chat</button>
+          <button class="ra-rtab" data-r="trace">🧠 Agent Trace</button>
+          <button class="ra-rtab" data-r="report">📊 Construction Report</button>
+          <button class="ra-rtab" data-r="diff">🔍 Diff View</button>
+        </div>
+        <!-- Chat pane: Gradio-style conversation -->
+        <div id="ra-r-chat" class="ra-rpane active">
+          <div id="ra-chat-toolbar">
+            <select id="ra-chat-agent" style="padding:4px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--border);color:var(--text)">
+              <option value="agent_a1">agent_a1</option>
+              <option value="agent_a2">agent_a2</option>
+              <option value="agent_a3">agent_a3</option>
+            </select>
+            <span id="ra-chat-model-badge" class="badge" style="font-size:10px;padding:2px 8px">…</span>
+            <button id="ra-chat-clear" class="btn ghost" style="font-size:11px;margin-left:auto" title="Clear conversation">🗑 Clear</button>
+          </div>
+          <div id="ra-chat-log" class="ra-chat-convo">
+            <div class="ra-chat-empty">Chat with a recursive agent. Messages persist here.</div>
+          </div>
+          <div class="ra-chat-input-row">
+            <textarea id="ra-chat-message" rows="2" placeholder="Type a message… (Shift+Enter to send)" style="flex:1;resize:none;padding:8px;border-radius:8px;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:12px"></textarea>
+            <button id="ra-chat-send" class="btn primary">💬 Send</button>
+          </div>
+          <div id="ra-chat-status" class="status" style="margin-top:4px"></div>
+        </div>
+        <div id="ra-r-trace" class="ra-rpane">
+          <div id="ra-trace-head" class="ma-process-head">
+            <span class="muted">select an agent on the left and click ▶ Instruct to watch its process…</span>
+          </div>
+          <div id="ra-trace-log" class="ma-process-log"></div>
+        </div>
+        <div id="ra-r-report" class="ra-rpane">
+          <div id="ra-report-body" class="ma-chat-log">
+            <div class="muted">no construction report yet — instruct an agent to build the next one…</div>
+          </div>
+        </div>
+        <div id="ra-r-diff" class="ra-rpane">
+          <div class="row" style="margin:10px 0">
+            <select id="ra-diff-agent1" class="grow">
+              <option value="agent_a1">agent_a1</option>
+              <option value="agent_a2">agent_a2</option>
+              <option value="agent_a3">agent_a3</option>
+            </select>
+            <span>vs</span>
+            <select id="ra-diff-agent2" class="grow">
+              <option value="agent_a2">agent_a2</option>
+              <option value="agent_a3" selected>agent_a3</option>
+              <option value="agent_a1">agent_a1</option>
+            </select>
+            <button id="ra-diff-run" class="btn primary">Compare</button>
+          </div>
+          <div id="ra-diff-body" class="ma-chat-log">
+            <div class="muted">select two agents and click Compare…</div>
+          </div>
+        </div>
+      </div>
+
       <div id="canvas-body">
         <svg id="graph-canvas" width="100%" height="100%"></svg>
         <iframe id="viz-frame" class="hidden" title="interactive graph"></iframe>
@@ -330,5 +506,6 @@
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="app.js"></script>
   <script src="multiagent.js"></script>
+  <script src="recursiveagent.js"></script>
 </body>
 </html>

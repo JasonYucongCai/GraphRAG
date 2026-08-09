@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_15_Quinn",
+  "name": "Quinn",
+  "bio": "Quinn is curious and inquisitive with a spring in her step. She asks the interesting questions, proposes experiments, and keeps the workspace buzzing with constructive activity.",
+  "status": "active",
+  "capacity": {
+    "math": 89.0,
+    "physics": 69.0,
+    "engineering": 82.0,
+    "biology": 81.0,
+    "genomics": 60.0,
+    "reasoning": 63.0,
+    "research": 72.0,
+    "social": 62.0,
+    "play": 68.0,
+    "creativity": 68.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 90.0,
+      "variance": 13.0
+    },
+    "physics": {
+      "mean": 68.0,
+      "variance": 12.0
+    },
+    "engineering": {
+      "mean": 80.0,
+      "variance": 7.0
+    },
+    "biology": {
+      "mean": 86.0,
+      "variance": 10.0
+    },
+    "genomics": {
+      "mean": 57.0,
+      "variance": 6.0
+    },
+    "reasoning": {
+      "mean": 65.0,
+      "variance": 15.0
+    },
+    "research": {
+      "mean": 73.0,
+      "variance": 3.0
+    },
+    "social": {
+      "mean": 57.0,
+      "variance": 4.0
+    },
+    "play": {
+      "mean": 73.0,
+      "variance": 5.0
+    },
+    "creativity": {
+      "mean": 65.0,
+      "variance": 12.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 50.0,
+      "y": 31.0,
+      "z": 91.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}

@@ -39,7 +39,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/llm.chat.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/llm.chat.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -97,7 +97,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/llm.complete.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/llm.complete.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -155,7 +155,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/llm.chat_stream.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/llm.chat_stream.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {

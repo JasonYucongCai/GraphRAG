@@ -1,7 +1,7 @@
 """
-ipp.IPP_schema — the formal JSON Schema of an IPP v0.2.8 Json File (F).
+IPP.IPP_schema — the formal JSON Schema of an IPP v0.2.8 Json File (F).
 
-Mirrors §9 of IPP_v0.2.8_Specification.md. Used by ipp.IPP_file to validate
+Mirrors §9 of IPP_v0.2.8_Specification.md. Used by IPP.IPP_file to validate
 every IPP Json File at construction time (before Γ parses it).
 
 Pragmatic extension (documented): each channel may carry a ``"handler"``

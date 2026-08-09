@@ -1,0 +1,183 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "license": "Apache-2.0 + HCASL v0.2 (see HCASL_License_v0.2.txt)",
+  "node_id": "tools.copilot",
+  "channels": [
+    {
+      "channel_id": "default",
+      "ipp_object": {
+        "input": {
+          "core_flow": {
+            "payload": {
+              "type": "object",
+              "description": "Toolset directive: {operation, data}. operation ∈ {list_tools, tool_defs, tool_info, execute, catalog, count}. data carries {tool_name, arguments, preset, model_id, workspace_root, session_id}."
+            },
+            "metadata": {
+              "content_type": "application/json",
+              "encoding": "utf-8"
+            },
+            "control_status": {
+              "type": "object",
+              "description": "Toolset coordination state: preset, scoping."
+            }
+          },
+          "accommodation": {
+            "routing_addressing": {
+              "source": "tools.mcp",
+              "destination": "tools.copilot",
+              "protocol": "mcp/1.0 over ipp/0.2.8"
+            },
+            "policies_qos": {
+              "security_clearance": "internal",
+              "max_latency_ms": 30000
+            }
+          },
+          "template": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "operation"
+              ],
+              "properties": {
+                "operation": {
+                  "type": "string"
+                },
+                "data": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "process": {
+          "type": "toolset_execution",
+          "description": "The Copilot toolset node (default owner of the global ToolRegistry): full registry toolset with validation, deferral, memory, search, shell, sub-agent and notebook tools. Real execution via ToolRegistry.execute_tool.",
+          "implementation": "tools.copilot.ipp_executor"
+        },
+        "output": {
+          "core_flow": {
+            "payload": {
+              "type": "object",
+              "description": "Toolset result: {engine_id, preset, tools, tool_defs, tool_info, result, catalog, count}."
+            },
+            "metadata": {
+              "content_type": "application/json",
+              "encoding": "utf-8"
+            },
+            "control_status": {
+              "type": "object",
+              "description": "Post-call coordination state: tool_name, result status."
+            }
+          },
+          "accommodation": {
+            "routing_addressing": {
+              "source": "tools.copilot",
+              "destination": "tools.mcp | any-ipp-node",
+              "protocol": "mcp/1.0 over ipp/0.2.8"
+            },
+            "policies_qos": {
+              "security_clearance": "internal",
+              "audit_level": "full"
+            }
+          },
+          "template": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "result": {},
+                "tools": {
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "operation"
+            ],
+            "properties": {
+              "operation": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0.0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 100,
+          "security_clearance": "internal",
+          "retry_policy": {
+            "max_retries": 1,
+            "backoff_strategy": "exponential"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": ".ipp_audit/tools.copilot.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [
+            "platform.harness"
+          ],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "tools",
+              "output_logical_type": "any",
+              "edge_count_range": {
+                "min": 0,
+                "max": 4
+              },
+              "compatibility": "exact"
+            }
+          ],
+          "downstream_compatible": [
+            {
+              "node_class": "any",
+              "output_logical_type": "any",
+              "edge_count_range": {
+                "min": 0,
+                "max": 16
+              },
+              "compatibility": "any"
+            }
+          ],
+          "routing_modes": [
+            "unicast",
+            "multicast",
+            "broadcast",
+            "anycast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 1,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "buffer"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

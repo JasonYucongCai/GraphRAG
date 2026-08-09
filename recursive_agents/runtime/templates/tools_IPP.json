@@ -1,0 +1,1029 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "{node_id}",
+  "description": "The recursive agent {agent_id} tools node: a ROUTER over the agent's REAL tool registry (recursive_agents.runtime.toolkit.AgentToolkit). Eight agent-construction channels (agent_plan / agent_generate / agent_create / agent_evaluate / agent_test / agent_improve / agent_deploy / agent_status) run the agent's OWN construction tools — they write the next agent's folders and construct its IPP nodes themselves. invoke/list/describe route the general capability surface through the toolkit registry + the SHARED tools node (general_tools) — one execution plane, one audit trail. The agent thinks, evaluates and self-acts with these hands.",
+  "channels": [
+    {
+      "channel_id": "invoke",
+      "handler": "recursive_agents.runtime.tool_handlers:make_invoke_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolInvocation",
+          "description": "{tool: str, args: object}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              },
+              "args": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "Execute one tool through the agent's own toolkit registry; general tools delegate to the SHARED tools node's envelope (ACL enforced here).",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{content, ok, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              },
+              "args": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.invoke.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "ToolInvocation",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [
+            {
+              "node_class": "tools",
+              "input_logical_type": "ToolInvocation",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "exact"
+            }
+          ],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 32,
+            "acknowledgment": "required",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "list",
+      "handler": "recursive_agents.runtime.tool_handlers:make_list_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolListQuery",
+          "description": "{}",
+          "schema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "process": {
+          "description": "The agent's full tool surface: the construction suite + the general ACL.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "ToolNames",
+          "description": "[str]",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.list.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "ToolListQuery",
+              "edge_count_range": {
+                "min": 0,
+                "max": 8
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 8,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "describe",
+      "handler": "recursive_agents.runtime.tool_handlers:make_describe_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolDescribeQuery",
+          "description": "{tool: str}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "One tool's JSON definition: from the agent's own registry (construction suite + ACL), or the SHARED tools node's F-file catalog.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "ToolDefinition",
+          "description": "definition dict",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.describe.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "ToolDescribeQuery",
+              "edge_count_range": {
+                "min": 0,
+                "max": 8
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 8,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_plan",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_plan_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentPlanQuery",
+          "description": "{agent_id: str, level: int?}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "THINK: the deterministic construction plan for the next recursive agent.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "AgentPlan",
+          "description": "{ok, agent_id, level, steps, target_folders}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_plan.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_generate",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_generate_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentId",
+          "description": "{agent_id: str, level: int?}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "GENERATE: write the next agent's engine + tools folders by rendering the templates (REAL filesystem work by this agent's own tool).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "GenerateReport",
+          "description": "{ok, agent_id, level, folders, generated_by}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 120000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_generate.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_create",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_create_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentId",
+          "description": "{agent_id: str, level: int?}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "CREATE: construct the next agent's engine + tools IPP nodes through Γ (7-step protocol) + verify ALL 17 invariants.",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "ConstructReport",
+          "description": "{ok, agent_id, level, engine_node, tools_node, verified, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_create.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 2,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "required",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_evaluate",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_evaluate_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentId",
+          "description": "{agent_id: str}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "EVALUATE: 17 invariants + audit chains + channel surface of a constructed agent.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "EvaluateReport",
+          "description": "{ok, engine_failures, tools_failures, audit_chains, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 60000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_evaluate.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_test",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_test_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentId",
+          "description": "{agent_id: str}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "TEST: run the ground→chat pipeline through the envelopes + latency probe + invariants → structured feedback.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "TestFeedback",
+          "description": "{ok, checks, issues, latency_ms, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 120000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_test.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_improve",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_improve_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentId",
+          "description": "{agent_id: str, iterations: int?}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "iterations": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "IMPROVE: test → deterministic patch → reconstruct → retest until it passes (feedback logged).",
+          "kind": "agent"
+        },
+        "output": {
+          "logical_type": "ImproveReport",
+          "description": "{ok, iterations, patches, rounds, final, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "iterations": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 1,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_improve.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 2,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "required",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_deploy",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_deploy_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentId",
+          "description": "{agent_id: str, level: int?}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "DEPLOY: generate + construct + register the agent in the chain.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "DeployReport",
+          "description": "{ok, agent_id, level, chain, message}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "agent_id"
+            ],
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_deploy.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "agent_status",
+      "handler": "recursive_agents.runtime.tool_handlers:make_agent_status_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ChainQuery",
+          "description": "{}",
+          "schema": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "process": {
+          "description": "Report the constructed recursive chain.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "ChainStatus",
+          "description": "{ok, chain}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "constructor",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "{log_dir}/{node_id}.agent_status.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 4,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

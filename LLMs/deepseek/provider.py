@@ -15,8 +15,8 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from tools.config import Config
-from tools.IPP import IPP
+from general_tools.config import Config
+from general_tools.IPP import IPP
 
 logger = logging.getLogger("LLMs.deepseek.provider")
 

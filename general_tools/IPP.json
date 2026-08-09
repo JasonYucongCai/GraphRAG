@@ -1,0 +1,3014 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "tools",
+  "description": "The SHARED runtime node: the tool layer + graph/encoder/build/audit operations as one IPP v0.2.8 component. invoke executes ANY registered tool (BaseTool four-phase lifecycle or the flat codex suite); list/describe expose the JSON-Schema definitions the LLM sees; graph materializes local graphs and reads/validates nodes; encoder runs vector RAG (search_nodes/search/ingest/save); build seeds/rebuilds graphs and exports; check runs the read-only audit suite (review/standard/advanced). The per-agent tools nodes (codex_*_tools, ManyAgents) resolve their invoke channel DOWNSTREAM to this node's invoke channel — one execution plane, one audit trail. External topology: constructor-resolved against 𝒢.",
+  "channels": [
+    {
+      "channel_id": "invoke",
+      "handler": "general_tools.IPP_object:make_invoke_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolInvocation",
+          "description": "{tool: str, args: object, agent_id?, session_id?, workspace_root?} — one tool call",
+          "schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              },
+              "args": {
+                "type": "object"
+              },
+              "agent_id": {
+                "type": "string"
+              },
+              "session_id": {
+                "type": "string"
+              },
+              "workspace_root": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "Execute one registered tool: IPP BaseTools through the four-phase lifecycle (resolve → validate → prepare → invoke) via the shared ToolRegistry, then the flat codex suite. Returns {ok, content, error, metadata}.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.invoke.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "ToolInvocation",
+              "edge_count_range": {
+                "min": 0,
+                "max": 128
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 128,
+            "acknowledgment": "required",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "list",
+      "handler": "general_tools.IPP_object:make_list_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolListQuery",
+          "description": "{names?: [str], round_index?: int} — the definitions surface",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "names": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "round_index": {
+                "type": "integer"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "The tool JSON-Schemas for the LLM: registry (BaseTools win) merged with the flat codex suite, optionally restricted to `names` (agent-tailored tool sets).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "ToolDefinitions",
+          "description": "{ok, definitions, count, names}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": null
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.list.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "ToolListQuery",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 32,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "describe",
+      "handler": "general_tools.IPP_object:make_describe_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "ToolDescribeQuery",
+          "description": "{tool: str}",
+          "schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "process": {
+          "description": "One tool's JSON function definition (registry or flat suite).",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "ToolDefinition",
+          "description": "{ok, definition, source}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "tool"
+            ],
+            "properties": {
+              "tool": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 30000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.describe.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "ToolDescribeQuery",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 32,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "graph",
+      "handler": "general_tools.IPP_object:make_graph_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "GraphOp",
+          "description": "{op: local|read|validate|summarize|stats|pagerank|registry, node_id?, depth?, focus?}",
+          "schema": {
+            "type": "object",
+            "anyOf": [
+              {
+                "description": "Materialize the depth-k local graph (default 3) of a node — the agent's working memory.",
+                "properties": {
+                  "node_id": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ],
+                    "description": "Node id or entryname"
+                  },
+                  "depth": {
+                    "type": "integer",
+                    "description": "BFS depth, default 3"
+                  },
+                  "op": {
+                    "const": "local"
+                  }
+                },
+                "required": [
+                  "op",
+                  "node_id"
+                ]
+              },
+              {
+                "description": "Read a node's metadata: entryname, category, description, content refs, stats.",
+                "properties": {
+                  "node_id": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  },
+                  "op": {
+                    "const": "read"
+                  }
+                },
+                "required": [
+                  "op",
+                  "node_id"
+                ]
+              },
+              {
+                "description": "Run §4.3a consistency + health checks; report violations.",
+                "properties": {
+                  "op": {
+                    "const": "validate"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "Produce a compact text summary of a node's local graph (community-style summary).",
+                "properties": {
+                  "node_id": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  },
+                  "focus": {
+                    "type": "string",
+                    "description": "what the summary should focus on"
+                  },
+                  "op": {
+                    "const": "summarize"
+                  }
+                },
+                "required": [
+                  "op",
+                  "node_id"
+                ]
+              },
+              {
+                "description": "Graph overview: node/edge counts, density, components, violations.",
+                "properties": {
+                  "op": {
+                    "const": "stats"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "Top-8 nodes by PageRank score.",
+                "properties": {
+                  "op": {
+                    "const": "pagerank"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "The graph's structurelist registry.",
+                "properties": {
+                  "op": {
+                    "const": "registry"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              }
+            ]
+          }
+        },
+        "process": {
+          "description": "The agent's hands on the network: local depth-k graphs (working memory), node reads, §4.3a consistency validation, community-style summaries, graph stats, pagerank and the structurelist registry.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "GraphResult",
+          "description": "{ok, content?, node_count?, edge_count?, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "op"
+            ],
+            "properties": {
+              "op": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 60000,
+          "rate_limit_rps": 0,
+          "security_clearance": "graph",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.graph.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "GraphOp",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 32,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "encoder",
+      "handler": "general_tools.IPP_object:make_encoder_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "EncoderOp",
+          "description": "{op: search_nodes|search|ingest|save, query?, k?, node_id?, text?}",
+          "schema": {
+            "type": "object",
+            "anyOf": [
+              {
+                "description": "Vector-based RAG search: find nodes and chunks similar to a query (encoder layer).",
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  },
+                  "k": {
+                    "type": "integer",
+                    "description": "top-k, default 10"
+                  },
+                  "op": {
+                    "const": "search_nodes"
+                  }
+                },
+                "required": [
+                  "op",
+                  "query"
+                ]
+              },
+              {
+                "description": "Raw vector search over chunks (web UI surface).",
+                "properties": {
+                  "query": {
+                    "type": "string"
+                  },
+                  "k": {
+                    "type": "integer",
+                    "description": "top-k, default 10"
+                  },
+                  "op": {
+                    "const": "search"
+                  }
+                },
+                "required": [
+                  "op",
+                  "query"
+                ]
+              },
+              {
+                "description": "Index a node's text into the encoder layer.",
+                "properties": {
+                  "node_id": {
+                    "type": [
+                      "string",
+                      "integer"
+                    ]
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "op": {
+                    "const": "ingest"
+                  }
+                },
+                "required": [
+                  "op",
+                  "node_id",
+                  "text"
+                ]
+              },
+              {
+                "description": "Persist the vector index.",
+                "properties": {
+                  "op": {
+                    "const": "save"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              }
+            ]
+          }
+        },
+        "process": {
+          "description": "Vector RAG over the encoder layer: search_nodes returns node hits + chunk evidence (the agent's tool), search returns raw chunks (the web UI), ingest_meta indexes a node's text, save persists the index.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "EncoderResult",
+          "description": "{ok, nodes?, chunks?, content?, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "op"
+            ],
+            "properties": {
+              "op": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 60000,
+          "rate_limit_rps": 0,
+          "security_clearance": "graph",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.encoder.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "EncoderOp",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 32,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "build",
+      "handler": "general_tools.IPP_object:make_build_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "BuildOp",
+          "description": "{op: build|cy3|export, out_dir?, topic?}",
+          "schema": {
+            "type": "object",
+            "anyOf": [
+              {
+                "description": "Seed the network from assets/ (build_graph) and rebind.",
+                "properties": {
+                  "op": {
+                    "const": "build"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "Seed a custom graph folder (build_cy3_graph) and rebind.",
+                "properties": {
+                  "out_dir": {
+                    "type": "string"
+                  },
+                  "op": {
+                    "const": "cy3"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "Write the legacy per-topic exports.",
+                "properties": {
+                  "op": {
+                    "const": "export"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              }
+            ]
+          }
+        },
+        "process": {
+          "description": "Graph seeding/rebuild and exports: build seeds the network from assets/ (build_graph), cy3 seeds a custom graph folder (build_cy3_graph), export writes the legacy per-topic exports.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "BuildResult",
+          "description": "{ok, nodes?, edges?, chunks?, path?, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "op"
+            ],
+            "properties": {
+              "op": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "build",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.build.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 3,
+            "recovery_timeout_ms": 60000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 5000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "BuildOp",
+              "edge_count_range": {
+                "min": 0,
+                "max": 16
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 16,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "check",
+      "handler": "general_tools.IPP_object:make_check_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "CheckOp",
+          "description": "{op: review|standard|advanced, workspace_root?}",
+          "schema": {
+            "type": "object",
+            "anyOf": [
+              {
+                "description": "Scan the project for the top security threats / risks (exposed keys, secrets, dangerous patterns). READ-ONLY.",
+                "properties": {
+                  "op": {
+                    "const": "review"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "Standard project check: structure, required files, Python syntax, graph consistency. READ-ONLY.",
+                "properties": {
+                  "op": {
+                    "const": "standard"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              },
+              {
+                "description": "Advanced audit: large files, stale artifacts, .env exposure, dependency pins, TODOs/FIXMEs. READ-ONLY.",
+                "properties": {
+                  "op": {
+                    "const": "advanced"
+                  }
+                },
+                "required": [
+                  "op"
+                ]
+              }
+            ]
+          }
+        },
+        "process": {
+          "description": "The READ-ONLY audit suite: review scans for the top security threats (exposed keys, secrets, dangerous patterns); standard checks structure/required files/Python syntax/graph consistency; advanced audits large files, .env exposure, TODO/FIXME markers and dependency pins.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "CheckResult",
+          "description": "{ok, content?, count?, ...}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "required": [
+              "op"
+            ],
+            "properties": {
+              "op": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 120000,
+          "rate_limit_rps": 0,
+          "security_clearance": "audit",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.check.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 5,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 1000
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "CheckOp",
+              "edge_count_range": {
+                "min": 0,
+                "max": 16
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 16,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "shell_command",
+      "handler": "general_tools.IPP_object:make_shell_command_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "shell_command",
+          "description": "Execute a shell command. Returns exit code, duration, stdout, stderr. 30s timeout. Blocks destructive commands. Max 8000 char output.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "cwd": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        },
+        "process": {
+          "description": "Execute a shell command. Returns exit code, duration, stdout, stderr. 30s timeout. Blocks destructive commands. Max 8000 char output.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string"
+              },
+              "cwd": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.shell_command.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "shell_command",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "read_file",
+      "handler": "general_tools.IPP_object:make_read_file_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "read_file",
+          "description": "Read a file with encoding detection, line numbers for partial reads, metadata header. 8000 char limit.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "start_line": {
+                "type": "integer"
+              },
+              "end_line": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        },
+        "process": {
+          "description": "Read a file with encoding detection, line numbers for partial reads, metadata header. 8000 char limit.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "start_line": {
+                "type": "integer"
+              },
+              "end_line": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.read_file.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "read_file",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "write_file",
+      "handler": "general_tools.IPP_object:make_write_file_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "write_file",
+          "description": "Write a file. Creates .bak backup. Returns unified diff. Auto-creates parent directories.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        },
+        "process": {
+          "description": "Write a file. Creates .bak backup. Returns unified diff. Auto-creates parent directories.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.write_file.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "write_file",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "list_directory",
+      "handler": "general_tools.IPP_object:make_list_directory_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "list_directory",
+          "description": "List directory with sizes, timestamps, type icons. Dirs first, then files.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "default workspace root"
+              }
+            },
+            "required": []
+          }
+        },
+        "process": {
+          "description": "List directory with sizes, timestamps, type icons. Dirs first, then files.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "default workspace root"
+              }
+            },
+            "required": []
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.list_directory.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "list_directory",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "search_files",
+      "handler": "general_tools.IPP_object:make_search_files_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "search_files",
+          "description": "Find files by glob. Up to 100 results, newest first, with sizes.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "Glob: **/*.py"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        },
+        "process": {
+          "description": "Find files by glob. Up to 100 results, newest first, with sizes.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "Glob: **/*.py"
+              }
+            },
+            "required": [
+              "pattern"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.search_files.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "search_files",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "grep_search",
+      "handler": "general_tools.IPP_object:make_grep_search_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "grep_search",
+          "description": "Regex search with file:line:col refs, per-file match counts, optional context lines. Case-insensitive.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "include_pattern": {
+                "type": "string"
+              },
+              "context_lines": {
+                "type": "integer"
+              },
+              "max_matches": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        },
+        "process": {
+          "description": "Regex search with file:line:col refs, per-file match counts, optional context lines. Case-insensitive.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "include_pattern": {
+                "type": "string"
+              },
+              "context_lines": {
+                "type": "integer"
+              },
+              "max_matches": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.grep_search.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "grep_search",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "apply_patch",
+      "handler": "general_tools.IPP_object:make_apply_patch_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "apply_patch",
+          "description": "Apply a unified diff: (1) read target, (2) backup, (3) parse hunks, (4) apply via difflib or shell fallback, (5) validate.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "target_file": {
+                "type": "string"
+              },
+              "patch_content": {
+                "type": "string",
+                "description": "Unified diff"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "target_file",
+              "patch_content"
+            ]
+          }
+        },
+        "process": {
+          "description": "Apply a unified diff: (1) read target, (2) backup, (3) parse hunks, (4) apply via difflib or shell fallback, (5) validate.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "target_file": {
+                "type": "string"
+              },
+              "patch_content": {
+                "type": "string",
+                "description": "Unified diff"
+              },
+              "description": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "target_file",
+              "patch_content"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.apply_patch.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "apply_patch",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "view_image",
+      "handler": "general_tools.IPP_object:make_view_image_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "view_image",
+          "description": "Read image, detect dimensions (PNG/JPEG), encode as base64 data URL. Returns metadata.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        },
+        "process": {
+          "description": "Read image, detect dimensions (PNG/JPEG), encode as base64 data URL. Returns metadata.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.view_image.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "view_image",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "current_time",
+      "handler": "general_tools.IPP_object:make_current_time_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "current_time",
+          "description": "Current time in local, UTC, ISO 8601, Unix, weekday formats.",
+          "schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "process": {
+          "description": "Current time in local, UTC, ISO 8601, Unix, weekday formats.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.current_time.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "current_time",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "plan",
+      "handler": "general_tools.IPP_object:make_plan_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "plan",
+          "description": "Task plan with step IDs, statuses, optional dependencies, progress tracking.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed",
+                        "blocked"
+                      ]
+                    },
+                    "depends_on": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "description"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "title",
+              "steps"
+            ]
+          }
+        },
+        "process": {
+          "description": "Task plan with step IDs, statuses, optional dependencies, progress tracking.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed",
+                        "blocked"
+                      ]
+                    },
+                    "depends_on": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "description"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "title",
+              "steps"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.plan.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "plan",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "request_user_input",
+      "handler": "general_tools.IPP_object:make_request_user_input_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "request_user_input",
+          "description": "Ask user a question. Returns request ID. User responds with /answer <id> <response>.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "default": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question"
+            ]
+          }
+        },
+        "process": {
+          "description": "Ask user a question. Returns request ID. User responds with /answer <id> <response>.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "question": {
+                "type": "string"
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "default": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "question"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.request_user_input.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "request_user_input",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "spawn_agent",
+      "handler": "general_tools.IPP_object:make_spawn_agent_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "spawn_agent",
+          "description": "Create a sub-agent running in parallel. Returns agent_id.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "task": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string",
+                "description": "Additional context"
+              }
+            },
+            "required": [
+              "name",
+              "task"
+            ]
+          }
+        },
+        "process": {
+          "description": "Create a sub-agent running in parallel. Returns agent_id.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "task": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string",
+                "description": "Additional context"
+              }
+            },
+            "required": [
+              "name",
+              "task"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.spawn_agent.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "spawn_agent",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "wait_agent",
+      "handler": "general_tools.IPP_object:make_wait_agent_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "wait_agent",
+          "description": "Wait for sub-agent and return its result. Timeout 1-600 seconds.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "description": "Default: 120"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        },
+        "process": {
+          "description": "Wait for sub-agent and return its result. Timeout 1-600 seconds.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "description": "Default: 120"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.wait_agent.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "wait_agent",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "list_agents",
+      "handler": "general_tools.IPP_object:make_list_agents_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "list_agents",
+          "description": "List all sub-agents with status, runtime, task preview.",
+          "schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "process": {
+          "description": "List all sub-agents with status, runtime, task preview.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.list_agents.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "list_agents",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "cancel_agent",
+      "handler": "general_tools.IPP_object:make_cancel_agent_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "cancel_agent",
+          "description": "Cancel a running sub-agent.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        },
+        "process": {
+          "description": "Cancel a running sub-agent.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.cancel_agent.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "cancel_agent",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "send_notification",
+      "handler": "general_tools.IPP_object:make_send_notification_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "send_notification",
+          "description": "Push notification via PushOver. Supports priority, sound, URL. Requires .env config.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer",
+                "description": "-2 quiet to 2 emergency"
+              },
+              "url": {
+                "type": "string"
+              },
+              "sound": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "message"
+            ]
+          }
+        },
+        "process": {
+          "description": "Push notification via PushOver. Supports priority, sound, URL. Requires .env config.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "integer",
+                "description": "-2 quiet to 2 emergency"
+              },
+              "url": {
+                "type": "string"
+              },
+              "sound": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "message"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.send_notification.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "send_notification",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "memory_read",
+      "handler": "general_tools.IPP_object:make_memory_read_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "memory_read",
+          "description": "Read from persistent key-value memory. '*' lists all keys with metadata. Auto-cleans expired entries.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          }
+        },
+        "process": {
+          "description": "Read from persistent key-value memory. '*' lists all keys with metadata. Auto-cleans expired entries.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "key"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.memory_read.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "memory_read",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "memory_write",
+      "handler": "general_tools.IPP_object:make_memory_write_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "memory_write",
+          "description": "Write to persistent JSON memory. Optional TTL, tags, auto-timestamps.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "ttl_seconds": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "key",
+              "value"
+            ]
+          }
+        },
+        "process": {
+          "description": "Write to persistent JSON memory. Optional TTL, tags, auto-timestamps.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              },
+              "ttl_seconds": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "key",
+              "value"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.memory_write.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "memory_write",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "web_search",
+      "handler": "general_tools.IPP_object:make_web_search_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "web_search",
+          "description": "Search the web via DuckDuckGo or fetch a URL. Returns page title, content, and URLs. Use for looking up documentation, APIs, or current information that isn't in your training data.",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query OR full URL to fetch"
+              },
+              "max_results": {
+                "type": "integer",
+                "description": "Max results, default: 3"
+              },
+              "search_mode": {
+                "type": "string",
+                "description": "'auto' (default): detect URL vs search. 'url': force URL fetch. 'search': force web search."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        },
+        "process": {
+          "description": "Search the web via DuckDuckGo or fetch a URL. Returns page title, content, and URLs. Use for looking up documentation, APIs, or current information that isn't in your training data.",
+          "kind": "tool"
+        },
+        "output": {
+          "logical_type": "ToolResult",
+          "description": "{ok, content, error, metadata}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query OR full URL to fetch"
+              },
+              "max_results": {
+                "type": "integer",
+                "description": "Max results, default: 3"
+              },
+              "search_mode": {
+                "type": "string",
+                "description": "'auto' (default): detect URL vs search. 'url': force URL fetch. 'search': force web search."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "shell",
+          "retry_policy": {
+            "max_retries": 0,
+            "backoff_strategy": "constant"
+          }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/tools.web_search.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": {
+            "failure_threshold": 10,
+            "recovery_timeout_ms": 30000
+          },
+          "escalation_policy": {
+            "max_escalation_depth": 1,
+            "escalation_delay_ms": 0
+          }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            {
+              "node_class": "*",
+              "output_logical_type": "web_search",
+              "edge_count_range": {
+                "min": 0,
+                "max": 64
+              },
+              "compatibility": "any"
+            }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": [
+            "unicast"
+          ],
+          "constraint_envelope": {
+            "max_parallel_edges": 64,
+            "acknowledgment": "optional",
+            "backpressure_modes": [
+              "block"
+            ],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

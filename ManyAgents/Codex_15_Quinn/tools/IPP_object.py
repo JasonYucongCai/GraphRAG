@@ -5,11 +5,11 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from tools.IPP import ToolRegistry, ToolContext
+from general_tools.IPP import ToolContext
 
 
 def make_invoke_handler(bindings: dict):
-    tool_names = set(bindings.get("tool_names") or ToolRegistry.names())
+    tool_names = set(bindings.get("tool_names") or [])
 
     def handler(payload: dict, context: dict) -> dict:
         tool = payload.get("tool", "")
@@ -17,15 +17,24 @@ def make_invoke_handler(bindings: dict):
         if tool not in tool_names:
             return {"content": f"tool {tool!r} not in this agent's tool set",
                     "ok": False, "error": "tool_not_allowed", "metadata": {}}
-        result = ToolRegistry.execute(tool, args, ToolContext())
-        return {"content": result.content, "ok": result.ok,
-                "error": result.error, "metadata": result.metadata}
+        # strict IPP: the agent tools node delegates to the SHARED tools
+        # node (tools/IPP.json via Γ) — one execution plane, one audit
+        # trail; the ACL (tool_names) stays enforced here.
+        from general_tools.construct import tools_node
+        out = tools_node().invoke(
+            "invoke", {"tool": tool, "args": args,
+                       "agent_id": bindings.get("agent_id", "")}).payload
+        if not isinstance(out, dict):
+            out = {"content": str(out), "ok": bool(out), "error": None,
+                   "metadata": {}}
+        return {"content": out.get("content", ""), "ok": out.get("ok", False),
+                "error": out.get("error"), "metadata": out.get("metadata", {})}
 
     return handler
 
 
 def make_list_handler(bindings: dict):
-    tool_names = sorted(bindings.get("tool_names") or ToolRegistry.names())
+    tool_names = sorted(bindings.get("tool_names") or [])
 
     def handler(payload: Any, context: dict) -> list:
         return tool_names
@@ -34,13 +43,18 @@ def make_list_handler(bindings: dict):
 
 
 def make_describe_handler(bindings: dict):
-    tool_names = set(bindings.get("tool_names") or ToolRegistry.names())
+    tool_names = set(bindings.get("tool_names") or [])
 
     def handler(payload: dict, context: dict) -> Optional[dict]:
         tool = payload.get("tool", "")
         if tool not in tool_names:
             return None
-        tool_obj = ToolRegistry.get(tool)
-        return tool_obj.definition() if tool_obj else None
+        # strict IPP: the definition comes from the shared tools node's
+        # F-file catalog (list/describe channels)
+        from general_tools.construct import tools_node
+        out = tools_node().invoke("describe", {"tool": tool}).payload
+        if not isinstance(out, dict) or not out.get("ok"):
+            return None
+        return out.get("definition")
 
     return handler

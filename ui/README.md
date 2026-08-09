@@ -8,16 +8,17 @@ knowledge network. No build step, no CDN dependencies — everything serves from
 
 ```bash
 # from the workspace root
-python ui/server.py                     # → http://127.0.0.3:8000 (default GraphRAG graph)
-python ui/server.py --graph graph_data/cy3   # → serve the Calabi–Yau graph
+python ui/server.py                     # → http://127.0.0.3:8000 (active project's graph)
+python ui/server.py --graph database/calabiyau3fold/graph_data   # → serve the Calabi–Yau graph
 python ui/server.py --port 5000         # → http://127.0.0.3:5000
 python ui/server.py --host 127.0.0.1    # → http://127.0.0.1:8000
 ```
 
 `--graph DIR` serves any custom graph folder containing `knowledge_graph.json`
-+ `vectors/index.json` (e.g. `graph_data/cy3`); the rebuild button respects it.
-In custom-graph mode the note project is still opened in the Database tab but
-the graph ⇄ notes merge is skipped (the custom graph is authoritative).
++ `vectors/index.json` (e.g. `database/calabiyau3fold/graph_data`); the
+rebuild button respects it. In custom-graph mode the note project is still
+opened in the Database tab but the graph ⇄ notes merge is skipped (the custom
+graph is authoritative).
 
 **Visualization modes**: `SVG` (force-directed canvas) | `Interactive`
 (PyVis-style vis-network with physics, drag/zoom, hover tooltips) | `Mermaid`
@@ -25,10 +26,10 @@ the graph ⇄ notes merge is skipped (the custom graph is authoritative).
 right-hand **detail drawer** (id, category, degrees, pagerank, description,
 incoming/outgoing edges) via `postMessage` to the parent SPA — no popups.
 
-The server auto-loads the persisted graph from `graph_data/` or builds it from
-`assets/` on first start. The DeepSeek provider is live if the API key is
-configured (`LLMs/.env`), otherwise an offline `MockProvider` keeps the UI
-functional.
+The server auto-loads the persisted graph of the ACTIVE project from
+`database/<project>/graph_data/` or builds it from the project's notes on
+first start. The DeepSeek provider is live if the API key is configured
+(`LLMs/.env`), otherwise an offline `MockProvider` keeps the UI functional.
 
 The **Agent tab** of the main control center runs the three shared codex agents
 directly (agent dropdown + anchor node + task): `codex_normal` (general),
@@ -118,7 +119,7 @@ with:
   (depth 1–4), click any node for a detail drawer (metadata + in/out edges)
 - **Visualization modes** — toggle between `SVG` (custom force-directed with
   drag/pan/zoom), `Interactive` (PyVis-style vis-network with physics,
-  tooltips, and a `database/<project>/interactive.html` export), and
+  tooltips, and a `database/<project>/graph_data/interactive.html` export), and
   `Mermaid` (the `graph LR` dependency-flowchart format used by the
   ScientificInfrastructure notebooks)
 - **Search tab** — vector RAG over the encoder layer (nodes + grounded chunks
@@ -127,7 +128,10 @@ with:
   agent to expand the network (dedup + limits + consistency enforced)
 - **Database tab** — create/open note projects (one `.md` per node with a
   Version Control Log), export the graph to notes, edit notes and append VCL
-  entries
+  entries. Every project keeps ALL generated artifacts in its own
+  `database/<project>/graph_data/` (spec: `database/README.md`); the same
+  capabilities are exposed to the agents as IPP tools in
+  `database/database_tool/`
 - **Runs tab** — the version-control run log (VCL)
 
 ### Canvas interactions

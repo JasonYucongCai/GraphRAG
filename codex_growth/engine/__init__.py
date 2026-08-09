@@ -4,7 +4,7 @@ codex_growth.engine — the GROWTH engine package (IPP v0.2.8 node).
 The CodexGrowthEngine class (AgentEngine) plus the IPP node construction:
 
     engine = CodexGrowthEngine(graph, encoder, llm=..., store=...)
-    node   = construct_engine_node(engine)   # Γ ⊩ engine/ipp.json × 𝒢
+    node   = construct_engine_node(engine)   # Γ ⊩ engine/IPP.json × 𝒢
 
 The node has channels `ground` / `chat` / `chat_stream` with an internal
 blocking edge ground → chat: invoke("ground", {task, node_id}) runs the full
@@ -15,15 +15,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from tools.engine import AgentEngine
-from tools.encoder import EncoderLayer
-from tools.graph import KnowledgeGraph
+from general_tools.engine import AgentEngine
+from general_tools.encoder import EncoderLayer
+from general_tools.graph import KnowledgeGraph
 from LLMs.deepseek import DeepSeekProvider
-from tools.agent_specs import tool_set, chat_tool_set, system_prompt
+from general_tools.agent_specs import tool_set, chat_tool_set, system_prompt
 
 AGENT_ID = "codex_growth"
 
-_IPP_JSON = Path(__file__).resolve().parent / "ipp.json"
+_IPP_JSON = Path(__file__).resolve().parent / "IPP.json"
 
 
 class CodexGrowthEngine(AgentEngine):
@@ -73,9 +73,9 @@ class CodexGrowthEngine(AgentEngine):
 def construct_engine_node(engine: CodexGrowthEngine,
                           context=None, tool_names: Optional[list] = None,
                           register: bool = True):
-    """Γ ⊩ codex_growth/engine/ipp.json × 𝒢 ↝ the engine IPP node."""
-    from ipp.IPP_constructor import IPPConstructor
-    from ipp.IPP_registry import GraphContext
+    """Γ ⊩ codex_growth/engine/IPP.json × 𝒢 ↝ the engine IPP node."""
+    from IPP.IPP_constructor import IPPConstructor
+    from IPP.IPP_registry import GraphContext
     from codex_growth.engine.IPP_executor import AgentExecutor
 
     ctx = context or GraphContext()

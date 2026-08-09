@@ -12,20 +12,20 @@ Completions API lives in this subfolder.
 
 ## The LLM IPP node (v0.2.8)
 
-The `LLMs/` package is also an **IPP v0.2.8 node** declared in `LLMs/ipp.json`
+The `LLMs/` package is also an **IPP v0.2.8 node** declared in `LLMs/IPP.json`
 with three channels — `chat` · `complete` · `chat_stream` — each an
 independent (Ω, Ξ) pair:
 
 | File | Role |
 |---|---|
-| `ipp.json` | the IPP Json File (𝔉): ports, process descriptions, executor guardrails, edge capabilities |
-| `IPP.py` | `llm_node()` — Γ ⊩ `LLMs/ipp.json` × 𝒢 ↝ the node; `_default_provider()` (live-or-mock) |
+| `IPP.json` | the IPP Json File (𝔉): ports, process descriptions, executor guardrails, edge capabilities |
+| `IPP.py` | `llm_node()` — Γ ⊩ `LLMs/IPP.json` × 𝒢 ↝ the node; `_default_provider()` (live-or-mock) |
 | `IPP_object.py` | the Objects (Ω_k): `make_chat_handler` / `make_complete_handler` / `make_chat_stream_handler` bound by Γ to the provider |
 | `IPP_executor.py` | the Executors (Ξ_k): `LLMExecutor` adds token + latency accounting to the hash-chained audit |
 
 ```python
 from LLMs.IPP import llm_node
-from tools.IPP_runtime import verify_node
+from general_tools.IPP_runtime import verify_node
 
 node = llm_node()                        # live DeepSeek (mock fallback)
 r = node.invoke("chat", [{"role": "user", "content": "hi"}])

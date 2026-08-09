@@ -8,10 +8,12 @@ from pathlib import Path
 WS = Path(__file__).resolve().parent
 sys.path.insert(0, str(WS))
 
-from tools.IPP_runtime import verify_node, verify_all  # noqa: E402
-from tools.graph_tools import ensure_tools  # noqa: E402
+from general_tools.IPP_runtime import verify_node, verify_all  # noqa: E402
 
-ensure_tools()
+# bootstrap the shared tools node (Γ builds the F-file catalog — there is
+# no legacy BaseTool/ToolRegistry layer to register anymore)
+from general_tools.construct import tools_node  # noqa: E402
+tools_node()
 
 
 def _raises(fn):
@@ -54,7 +56,7 @@ if fails:
 # 2. codex_growth agent (engine + tools + llm nodes via Γ)
 # ═══════════════════════════════════════════════════════════════════════
 print("\n=== 2. codex_growth ===")
-from tools.build import build_graph  # noqa: E402
+from general_tools.build import build_graph  # noqa: E402
 
 graph, encoder = build_graph()
 from codex_growth import create_agent as mk_growth  # noqa: E402
@@ -66,13 +68,14 @@ ok_all &= check("tools node built", g_engine._tools_node.node_id ==
 print(g_engine.node.summary())
 
 # tools node: list + describe + invoke (current_time is in the shared suite)
-tools_node = g_engine._tools_node
-tl = tools_node.invoke("list", None)
+agent_tools_node = g_engine._tools_node
+tl = agent_tools_node.invoke("list", None)
 ok_all &= check("tools list", len(tl.payload) > 10)
-td = tools_node.invoke("describe", {"tool": tl.payload[0]})
+td = agent_tools_node.invoke("describe", {"tool": tl.payload[0]})
 ok_all &= check("tools describe", td.payload is not None)
 try:
-    ti = tools_node.invoke("invoke", {"tool": "current_time", "args": {}})
+    ti = agent_tools_node.invoke("invoke", {"tool": "current_time",
+                                             "args": {}})
     ok_all &= check("tools invoke", ti.payload.get("ok") is not False)
 except Exception as exc:  # noqa: BLE001
     ok_all &= check(f"tools invoke ({exc})", False)
@@ -144,6 +147,153 @@ ok_all &= check("chat downstream = tools resolved",
                 any(d[0] == "codex_growth_tools" for d in chat_ex.downstream))
 ok_all &= check("X6: set_topology forbidden",
                 _raises(g_engine.node.executors["chat"].set_topology))
+
+# ═══════════════════════════════════════════════════════════════════════
+# 6. database node — the note store as an IPP component (isolated store)
+# ═══════════════════════════════════════════════════════════════════════
+print("\n=== 6. database node (the note store as an IPP component) ===")
+import tempfile  # noqa: E402
+from pathlib import Path  # noqa: E402
+from database.notes import NoteStore  # noqa: E402
+from general_tools.graph import KnowledgeGraph  # noqa: E402
+from database.construct import (  # noqa: E402
+    reset_database_node, bind_database, database_node,
+)
+
+db_store = NoteStore(root=Path(tempfile.mkdtemp(prefix="ipp-db-verify-")))
+db_graph = KnowledgeGraph(auto_load=False)
+reset_database_node()
+bind_database(store=db_store, graph=db_graph)
+db_node = database_node()
+ok_all &= check("constructed", db_node.node_id == "database" and
+                len(db_node.channels) == 6)
+ok_all &= check("channels",
+                set(db_node.channels) ==
+                {"project", "nodes", "edges", "graph", "supplement",
+                 "categories"})
+
+r = db_node.invoke("project", {"op": "create", "name": "Verify Project",
+                               "description": "verify_IPP"}).payload
+ok_all &= check("create_project via envelope", r.get("ok"))
+r = db_node.invoke("project", {"op": "list"}).payload
+ok_all &= check("list_projects via envelope", r.get("ok") and
+                len(r.get("projects", [])) == 1)
+r = db_node.invoke("nodes", {"op": "register", "node_id": "v1",
+                             "entryname": "Verify Node",
+                             "category": "concept"}).payload
+ok_all &= check("register_node via envelope", r.get("ok"))
+r = db_node.invoke("nodes", {"op": "register", "node_id": "v2",
+                             "entryname": "Verify Node 2"}).payload
+r = db_node.invoke("edges", {"op": "link", "source": "v1", "target": "v2",
+                             "relation": "cites"}).payload
+ok_all &= check("link_nodes via envelope", bool(r.get("ok") and r.get("edge_id")))
+r = db_node.invoke("graph", {"op": "sync"}).payload
+ok_all &= check("sync_project via envelope", bool(r.get("ok") and
+                r.get("created", 0) + r.get("updated", 0) >= 2))
+r = db_node.invoke("nodes", {"op": "get_note", "node_id": "v1"}).payload
+ok_all &= check("get_note via envelope", r.get("ok"))
+r = db_node.invoke("nodes", {"op": "get_note", "node_id": "nope"}).payload
+ok_all &= check("missing note → structured error", not r.get("ok") and
+                r.get("error") == "not_found")
+r = db_node.invoke("categories", {"op": "update",
+                                  "map": {"concept": "#123456"}}).payload
+ok_all &= check("update_categories via envelope", r.get("ok"))
+r = db_node.invoke("supplement", {"op": "create", "name": "Bundle",
+                                  "project": "verify_project"}).payload
+ok_all &= check("create_supplement via envelope", r.get("ok"))
+fails = verify_node(db_node)
+ok_all &= check("database node ALL 17 OK", not fails)
+if fails:
+    print("   failures:", fails)
+ok_all &= check("database audit chains verify",
+                all(ex.audit_verify() for ex in db_node.executors.values()))
+aud = db_node.executors["nodes"].audit_log[-1]
+ok_all &= check("audit records carry op + project",
+                aud.get("op") == "get_note" and aud.get("project") ==
+                "verify_project")
+
+# 6b. the STRICT chain: tools node invoke → router → database node envelope
+r = tools_node().invoke(
+    "invoke", {"tool": "register_node",
+               "args": {"node_id": "v3", "entryname": "Facade Node",
+                         "category": "note"},
+               "graph": db_graph}).payload
+ok_all &= check("router executes register_node through the database node",
+                bool(r.get("ok")))
+ok_all &= check("router hop audited on the tools invoke channel",
+                tools_node().executors["invoke"].audit_log[-1].get("tool") ==
+                "register_node")
+ok_all &= check("target hop audited on the database nodes channel",
+                db_node.executors["nodes"].audit_log[-1].get("op") ==
+                "register")
+
+# ═══════════════════════════════════════════════════════════════════════
+# 7. tools node — the SHARED runtime as an IPP component (isolated ctx)
+# ═══════════════════════════════════════════════════════════════════════
+print("\n=== 7. tools node (the SHARED runtime as an IPP component) ===")
+from general_tools.construct import (  # noqa: E402
+    reset_tools_node, bind_tools, tools_node,
+)
+from general_tools.graph import KnowledgeGraph as _KG  # noqa: E402
+from general_tools.encoder import EncoderLayer  # noqa: E402
+
+t_graph = KnowledgeGraph(auto_load=False)
+t_enc = EncoderLayer()
+reset_tools_node()
+bind_tools(graph=t_graph, encoder=t_enc)
+tools = tools_node()
+ok_all &= check("constructed", tools.node_id == "tools" and
+                len(tools.channels) == 26)
+ok_all &= check("channels include the 19 codex channels",
+                {"read_file", "shell_command", "web_search",
+                 "current_time"} <= set(tools.channels))
+ok_all &= check("catalog built from the F-files",
+                len(tools.constructor.context.bindings.get(
+                    "tools_catalog", {})) >= 50)
+
+r = tools.invoke("list", {"names": ["get_local_graph", "register_node",
+                                    "current_time"]}).payload
+ok_all &= check("list definitions via envelope",
+                bool(r.get("ok")) and len(r.get("definitions", [])) == 3)
+r = tools.invoke("invoke", {"tool": "current_time"}).payload
+ok_all &= check("flat tool via envelope",
+                bool(r.get("ok")) and bool(r.get("content")))
+r = tools.invoke("invoke", {"tool": "unknown_tool_xyz"}).payload
+ok_all &= check("unknown tool → structured error",
+                not r.get("ok") and r.get("error") == "unknown_tool")
+r = tools.invoke("graph", {"op": "stats"}).payload
+ok_all &= check("graph op via envelope", bool(r.get("ok")) and
+                r.get("nodes") == 0)
+r = tools.invoke("encoder", {"op": "search", "query": "x", "k": 3}).payload
+ok_all &= check("encoder op via envelope", bool(r.get("ok")))
+r = tools.invoke("check", {"op": "standard"}).payload
+ok_all &= check("check op via envelope", bool(r.get("ok")))
+fails = verify_node(tools)
+ok_all &= check("tools node ALL 17 OK", not fails)
+if fails:
+    print("   failures:", fails)
+ok_all &= check("tools audit chains verify",
+                all(ex.audit_verify() for ex in tools.executors.values()))
+inv_audits = [rec for rec in tools.executors["invoke"].audit_log
+              if rec.get("tool") == "current_time"]
+ok_all &= check("audit records carry tool",
+                bool(inv_audits) and inv_audits[0].get("op") == "")
+# a codex channel has its OWN envelope + audit (per-tool logs)
+r = tools.invoke("current_time", {}).payload
+ok_all &= check("codex channel via its own envelope",
+                bool(r.get("ok")) and bool(r.get("content")))
+ok_all &= check("codex channel audited separately",
+                len(tools.executors["current_time"].audit_log) >= 1 and
+                tools.executors["current_time"].audit_verify())
+# the router rejects unknown routes with a structured error
+r = tools.invoke("invoke", {"tool": "no_such_tool"}).payload
+ok_all &= check("unknown tool → structured error",
+                not r.get("ok") and r.get("error") == "unknown_tool")
+# the catalog derives exact definitions from the F-files
+r = tools.invoke("list", {"names": ["register_node", "read_file"]}).payload
+ok_all &= check("catalog definitions from the F-files",
+                bool(r.get("ok")) and len(r.get("definitions", [])) == 2 and
+                r["definitions"][0]["function"]["name"] == "register_node")
 
 print("\n" + ("═══ ALL IPP VERIFICATIONS PASSED ═══" if ok_all
               else "═══ SOME CHECKS FAILED ═══"))

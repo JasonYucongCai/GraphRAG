@@ -24,13 +24,26 @@ CAT_COLORS = {
     "subject": "#4caf7d", "paper": "#4c9aff", "concept": "#ffab4c",
     "benchmark": "#b57ff2", "experience": "#ef5350", "note": "#4cc2ff",
 }
+DEFAULT_COLOR = "#8aa0b0"
 
 
-def _node_payload(graph, node) -> dict:
+def _color_for(category: str, category_colors: Optional[dict] = None) -> str:
+    """Resolve a node category to its color. ``category_colors`` is the
+    per-project map ``{"default": hex, "map": {category: hex}}`` (see
+    database/README.md · categories.json); falls back to the BASE palette."""
+    if category_colors:
+        cmap = category_colors.get("map") or {}
+        if category in cmap:
+            return str(cmap[category])
+        return str(category_colors.get("default") or DEFAULT_COLOR)
+    return CAT_COLORS.get(category, DEFAULT_COLOR)
+
+
+def _node_payload(graph, node, category_colors: Optional[dict] = None) -> dict:
     return {
         "id": str(node.node_id),
         "label": node.entryname,
-        "color": CAT_COLORS.get(node.category, "#8aa0b0"),
+        "color": _color_for(node.category, category_colors),
         "category": node.category,
         "description": node.description[:300],
         "title": node.description[:300],   # vis-network hover tooltip
@@ -44,32 +57,39 @@ def _edge_payload(e) -> dict:
     return {"from": str(e.source), "to": str(e.target), "label": e.relation}
 
 
-def collect_view(graph, anchor: Optional[Any] = None, depth: int = 3) -> dict:
+def collect_view(graph, anchor: Optional[Any] = None, depth: int = 3,
+                 category_colors: Optional[dict] = None) -> dict:
     """Collect nodes+edges for either the full graph or a local graph."""
     if anchor is not None:
         local = graph.materialize_local(anchor, depth=depth)
-        nodes = [_node_payload(graph, n) for n in local.nodes.values()]
+        nodes = [_node_payload(graph, n, category_colors) for n in local.nodes.values()]
         edges = [_edge_payload(e) for e in local.edges]
         anchor_id = str(anchor)
     else:
-        nodes = [_node_payload(graph, n) for n in graph._nodes.values()]
+        nodes = [_node_payload(graph, n, category_colors) for n in graph._nodes.values()]
         edges = [_edge_payload(e) for e in graph._edges.values()]
         anchor_id = None
     return {"nodes": nodes, "edges": edges, "anchor": anchor_id}
 
 
 def interactive_html(graph, anchor: Optional[Any] = None, depth: int = 3,
-                     title: str = "Graph Knowledge Network") -> str:
+                     title: str = "Graph Knowledge Network",
+                     category_colors: Optional[dict] = None) -> str:
     """
     PyVis-style interactive network (vis-network CDN), self-contained HTML.
 
     Mirrors the Obsidian notebook's interactive graph: force-directed physics,
     draggable nodes, zoom/pan, hover tooltips with node descriptions.
+    ``category_colors`` = per-project ``{default, map}`` (categories.json).
     """
-    view = collect_view(graph, anchor, depth)
+    view = collect_view(graph, anchor, depth, category_colors)
     nodes_json = json.dumps(view["nodes"], ensure_ascii=False)
     edges_json = json.dumps(view["edges"], ensure_ascii=False)
     anchor_id = json.dumps(view["anchor"])
+    colors = category_colors or {"default": DEFAULT_COLOR, "map": CAT_COLORS}
+    legend = "".join(
+        f'<div class="lg"><span class="sw" style="background:{c}"></span>{k}</div>'
+        for k, c in sorted(colors.get("map", {}).items()))
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -94,8 +114,7 @@ def interactive_html(graph, anchor: Optional[Any] = None, depth: int = 3,
   <h1>⬡ {_html.escape(title)}</h1>
   <span id="stats"></span>
   <div id="legend">
-    {"".join(f'<div class="lg"><span class="sw" style="background:{c}"></span>{k}</div>'
-             for k, c in CAT_COLORS.items())}
+    {legend}
   </div>
 </header>
 <div id="graph"></div>

@@ -35,10 +35,15 @@ database/calabiyau3fold
 
 
 # ─── Generated / runtime artifacts (regenerable) ────────────────────────────
-# The knowledge graph + vector index are rebuilt by tools/build.py
-graph_data/
-# Note-based projects are generated from the graph by database_tool
+# The knowledge graph + vector index are rebuilt per project by pipeline/build
+# scripts and the server — they live in database/<project>/graph_data/
+**/graph_data/
+# Note-based projects are generated from the graph by database_tool — but the
+# SPEC, the NoteStore engine and the database_tool module ARE committed
 database/
+!database/README.md
+!database/notes.py
+!database/database_tool/
 # Chunk caches / exports
 *.bak
 chat_history/
@@ -53,6 +58,9 @@ assets/
 # ... but the README screenshots ARE committed
 !assets/screenshot-graphrag.png
 !assets/screenshot-multi-agent.png
+!assets/screenshot-controlcenter-20260809.png
+!assets/screenshot-multiagent-20260809.png
+!assets/screenshot-recursiveagent-20260809.png
 
 # ─── IDE / Editor ───────────────────────────────────────────────────────────
 .vscode/

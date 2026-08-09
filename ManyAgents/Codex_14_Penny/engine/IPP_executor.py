@@ -3,7 +3,7 @@ codex_normal.engine.IPP_executor — the IPP Executors (Ξ_k) of the general eng
 """
 from __future__ import annotations
 
-from ipp.IPP_executor import IPPExecutor
+from IPP.IPP_executor import IPPExecutor
 
 
 class AgentExecutor(IPPExecutor):

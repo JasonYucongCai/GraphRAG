@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 
-from ipp.IPP_executor import IPPExecutor
+from IPP.IPP_executor import IPPExecutor
 
 
 class LLMExecutor(IPPExecutor):

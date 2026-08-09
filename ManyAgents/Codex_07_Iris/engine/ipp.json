@@ -58,7 +58,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/Codex_07_Iris_engine.ground.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/Codex_07_Iris_engine.ground.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -137,7 +137,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/Codex_07_Iris_engine.chat.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/Codex_07_Iris_engine.chat.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {
@@ -191,7 +191,7 @@
     },
     {
       "channel_id": "chat_stream",
-      "handler": "IPP_Social.swarm.IPP_object:make_live_chat_stream_handler",
+      "handler": "ManyAgents.swarm.IPP_object:make_live_chat_stream_handler",
       "ipp_object": {
         "input": {
           "logical_type": "Task",
@@ -227,7 +227,7 @@
         },
         "provenance": {
           "audit_level": "full",
-          "log_endpoint": "graph_data/logs/ipp/Codex_07_Iris_engine.chat_stream.jsonl",
+          "log_endpoint": "graph_data/logs/IPP/Codex_07_Iris_engine.chat_stream.jsonl",
           "chain_of_custody": true
         },
         "error_handling": {

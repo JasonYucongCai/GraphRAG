@@ -1,8 +1,8 @@
 """
 codex_normal — the general-purpose codex agent.
 
-IPP v0.2.8: `create_agent()` constructs the engine node (engine/ipp.json),
-the tools node (tools/ipp.json) and the LLM node (LLMs/ipp.json) through Γ,
+IPP v0.2.8: `create_agent()` constructs the engine node (engine/IPP.json),
+the tools node (tools/IPP.json) and the LLM node (LLMs/IPP.json) through Γ,
 attaching the engine node as `engine.node`. The returned engine stays fully
 compatible with the AgentEngine surface (run_with_trace / chat_stream).
 """
@@ -20,7 +20,7 @@ def create_agent(graph, encoder, llm: Optional[DeepSeekProvider] = None,
                  store: Any = None, model: Optional[str] = None,
                  chat_mode: bool = False) -> CodexNormalEngine:
     """Build the engine + its IPP node and return the engine (node attached)."""
-    from ipp.IPP_registry import GraphContext
+    from IPP.IPP_registry import GraphContext
     from codex_normal.engine import construct_engine_node
     from codex_normal.tools import construct_tools_node
 

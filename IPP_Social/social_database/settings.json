@@ -1,0 +1,7 @@
+{
+  "llm_streaming": false,
+  "max_concurrent": 20,
+  "social_responder": true,
+  "max_reply_rounds": 1,
+  "max_broadcast_responders": 4
+}

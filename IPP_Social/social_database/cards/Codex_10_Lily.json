@@ -1,0 +1,76 @@
+{
+  "agent_id": "Codex_10_Lily",
+  "name": "Lily",
+  "bio": "Lily is bright and optimistic, bringing energy and encouragement. She takes initiative early, keeps the mood light and motivating, and stays practical about getting things done.",
+  "status": "active",
+  "capacity": {
+    "math": 66.0,
+    "physics": 65.0,
+    "engineering": 91.0,
+    "biology": 46.0,
+    "genomics": 48.0,
+    "reasoning": 80.0,
+    "research": 47.0,
+    "social": 93.0,
+    "play": 51.0,
+    "creativity": 64.0
+  },
+  "random_property": {
+    "math": {
+      "mean": 68.0,
+      "variance": 9.0
+    },
+    "physics": {
+      "mean": 61.0,
+      "variance": 12.0
+    },
+    "engineering": {
+      "mean": 90.0,
+      "variance": 13.0
+    },
+    "biology": {
+      "mean": 42.0,
+      "variance": 15.0
+    },
+    "genomics": {
+      "mean": 49.0,
+      "variance": 11.0
+    },
+    "reasoning": {
+      "mean": 78.0,
+      "variance": 14.0
+    },
+    "research": {
+      "mean": 51.0,
+      "variance": 16.0
+    },
+    "social": {
+      "mean": 90.0,
+      "variance": 16.0
+    },
+    "play": {
+      "mean": 52.0,
+      "variance": 12.0
+    },
+    "creativity": {
+      "mean": 60.0,
+      "variance": 3.0
+    }
+  },
+  "constraints": {
+    "position": {
+      "x": 61.0,
+      "y": 52.0,
+      "z": 41.0
+    },
+    "resources": {
+      "energy": 100.0,
+      "compute": 10.0
+    },
+    "version": 1
+  },
+  "comments": [],
+  "version": 1,
+  "created": "2026-08-09T22:08:29",
+  "updated": "2026-08-09T22:08:29"
+}
