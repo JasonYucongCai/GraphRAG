@@ -49,6 +49,7 @@ database/
 chat_history/
 
 # ─── Generated extraction outputs (regenerate with assets/scripts/*) ────────
+assets/*
 assets/extracted/
 assets/odl_output/
 assets/odl_hybrid_output/
