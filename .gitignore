@@ -55,7 +55,6 @@ assets/odl_output/
 assets/odl_hybrid_output/
 assets/docling_direct_output/
 assets/previous-resources/
-assets/
 # ... but the README screenshots ARE committed
 !assets/screenshot-graphrag.png
 !assets/screenshot-multi-agent.png
