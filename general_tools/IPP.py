@@ -1,29 +1,26 @@
 """
-tools.IPP — Information Processing Protocol (IPP) core.
+tools.IPP — legacy IPP abstraction (deprecated, kept for backward compatibility).
 
-Implements the formal IPP abstraction from the Codex Local architecture:
+The old ``IPP`` base class (I, Φ, O) and ``ToolResult`` remain here.  The
+canonical agent types ``ToolCallEvent`` and ``ToolContext`` now live in
+``graph_agent.types`` — they are RE-EXPORTED below so existing imports
+don't break.
 
-    IPP = (I, Φ, O),   Φ : I → O
+New code MUST import from the canonical locations:
 
-Every component (LLM provider, agent engine, tool, knowledge graph query,
-encoder, growth operator) is an IPP. Compositional closure: if A and B are
-IPPs then B∘A is an IPP — the output of one feeds the input of the next.
-
-Also implements the non-dispatch types still used by the engine and the
-nodes: the ToolResult envelope, the ToolContext and the ToolCallEvent
-observable trace.
+    from graph_agent import AgentEngine, ToolCallEvent, ToolContext
+    from IPP import IPPFile, IPPConstructor, IPPNode, IPPObject, IPPExecutor
 """
 from __future__ import annotations
 
-import enum
-import inspect
 import json
 import logging
 import time
-import uuid
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Generic, Optional, TypeVar, Union
+from typing import Any, Callable, Generic, Optional, TypeVar
+
+# ── canonical re-exports (backward compatibility) ─────────────────────────
+from graph_agent.types import ToolCallEvent, ToolContext  # noqa: F401
 
 logger = logging.getLogger("general_tools.IPP")
 
@@ -127,65 +124,6 @@ class ToolResult:
         if not self.ok:
             return f"[ERROR] {self.error}"
         return self.content
-
-
-@dataclass
-class ToolContext:
-    """Per-invocation context passed through the four-phase pipeline."""
-
-    workspace_root: str = ""
-    session_id: str = ""
-    node_id: Any = None            # the graph node the agent is operating on
-    local_graph: Any = None        # materialized local graph (L_3(u))
-    encoder: Any = None            # encoder layer IPP
-    agent: Any = None              # back-reference to the owning agent
-    extra: dict = field(default_factory=dict)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ToolCallEvent — observable execution trace (the agent loop's event stream)
-# ══════════════════════════════════════════════════════════════════════════════
-
-
-class ToolCallEvent:
-    """Emitted at every key node of the agent loop, forming an auditable trace."""
-
-    def __init__(
-        self,
-        type: str,  # start|tool_call|tool_result|text|approval|compaction|done|error
-        tool: Optional[str] = None,
-        args: Optional[dict] = None,
-        content: Optional[str] = None,
-        rounds: Optional[int] = None,
-        usage: Optional[dict] = None,
-        error: Optional[str] = None,
-        timestamp: Optional[str] = None,
-    ):
-        import time as _time
-
-        self.type = type
-        self.tool = tool
-        self.args = args
-        self.content = content
-        self.rounds = rounds
-        self.usage = usage
-        self.error = error
-        self.timestamp = timestamp or _time.strftime("%Y-%m-%dT%H:%M:%S", _time.localtime())
-
-    def __repr__(self) -> str:
-        return f"<ToolCallEvent {self.type} tool={self.tool} content={str(self.content)[:60]!r}>"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

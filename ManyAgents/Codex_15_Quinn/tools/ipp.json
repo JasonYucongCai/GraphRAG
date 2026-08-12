@@ -94,9 +94,16 @@
               "compatibility": "any"
             }
           ],
-                    "downstream_compatible": [
-            { "node_class": "tools", "input_logical_type": "ToolInvocation",
-              "edge_count_range": { "min": 0, "max": 32 }, "compatibility": "exact" }
+          "downstream_compatible": [
+            {
+              "node_class": "tools",
+              "input_logical_type": "ToolInvocation",
+              "edge_count_range": {
+                "min": 0,
+                "max": 32
+              },
+              "compatibility": "exact"
+            }
           ],
           "routing_modes": [
             "unicast"

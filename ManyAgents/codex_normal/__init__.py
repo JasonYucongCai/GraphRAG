@@ -11,12 +11,11 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from codex_normal.engine import CodexNormalEngine, AGENT_ID
-from LLMs.deepseek import DeepSeekProvider
 
 __all__ = ["CodexNormalEngine", "create_agent", "AGENT_ID"]
 
 
-def create_agent(graph, encoder, llm: Optional[DeepSeekProvider] = None,
+def create_agent(graph, encoder, llm_node: Any = None,
                  store: Any = None, model: Optional[str] = None,
                  chat_mode: bool = False) -> CodexNormalEngine:
     """Build the engine + its IPP node and return the engine (node attached)."""
@@ -24,15 +23,12 @@ def create_agent(graph, encoder, llm: Optional[DeepSeekProvider] = None,
     from codex_normal.engine import construct_engine_node
     from codex_normal.tools import construct_tools_node
 
-    engine = CodexNormalEngine(graph, encoder, llm=llm, store=store,
+    engine = CodexNormalEngine(graph, encoder, llm_node=llm_node, store=store,
                                model=model, chat_mode=chat_mode)
 
     ctx = GraphContext()
-    if llm is not None:
-        ctx.bind("provider", llm)
-    else:
-        from LLMs.IPP import _default_provider
-        ctx.bind("provider", _default_provider())
+    from LLMs.IPP import _default_provider
+    ctx.bind("provider", _default_provider())
 
     from LLMs.IPP import llm_node
     llm_node(context=ctx)
@@ -43,3 +39,4 @@ def create_agent(graph, encoder, llm: Optional[DeepSeekProvider] = None,
     engine._ipp_context = ctx
     engine._tools_node = tools_node
     return engine
+

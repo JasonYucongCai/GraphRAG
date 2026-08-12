@@ -138,6 +138,9 @@ def fetch_arxiv_metadata(aids: list[str], force: bool = False) -> dict[str, dict
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _slugify(text: str, words: int = 4) -> str:
+    """Convert a paper title to a URL-safe, graph-safe slug.
+    Removes special characters, collapses whitespace, lowercases."""
+
     slug = re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_").strip("_")
     parts = [p for p in slug.split("_") if p]
     return "_".join(parts[:words]) or "paper"
@@ -321,6 +324,10 @@ def paper_content_md(entry: dict, meta: dict, pdf: Optional[Path], txt: Optional
 
 
 def concept_content_md(entry: dict) -> str:
+    """Generate Markdown content for a concept node from its
+    description, related papers, and extracted evidence.
+    Used by the multi-agent knowledge graph build pipeline."""
+
     return (
         f"### What it is\n{entry['desc']}\n\n"
         "### Why it matters\n"

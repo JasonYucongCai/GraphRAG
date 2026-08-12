@@ -23,12 +23,20 @@ logger = logging.getLogger("general_tools.codex")
 _WORKSPACE: Optional[Path] = None
 
 def workspace() -> Path:
+    """Return the absolute workspace root path as a string.
+    All file-system tools resolve paths relative to this root
+    for sandbox safety (no traversal outside the workspace)."""
+
     global _WORKSPACE
     if _WORKSPACE is None:
         _WORKSPACE = Config.WORKSPACE_ROOT
     return _WORKSPACE
 
 def resolve_path(path: str) -> Path:
+    """Resolve a relative path to an absolute workspace path.
+    Prevents directory traversal attacks by normalizing and
+    checking the resolved path stays within WORKSPACE_ROOT."""
+
     p = Path(path)
     return p.resolve() if p.is_absolute() else (workspace() / p).resolve()
 
@@ -314,7 +322,7 @@ def tool_request_user_input(question: str, choices: list = None, default: str = 
 
 def tool_spawn_agent(name: str, task: str, context: str = "") -> str:
     try:
-        from general_tools.engine import AgentEngine
+        from graph_agent import AgentEngine
         from LLMs.deepseek import MockProvider
         e = AgentEngine(graph=None, encoder=None, llm=MockProvider())
     except Exception as exc:  # noqa: BLE001

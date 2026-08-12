@@ -12,10 +12,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from general_tools.engine import AgentEngine
+from graph_agent import AgentEngine
 from general_tools.encoder import EncoderLayer
 from general_tools.graph import KnowledgeGraph
-from LLMs.deepseek import DeepSeekProvider
 from general_tools.agent_specs import tool_set, chat_tool_set, system_prompt
 
 AGENT_ID = "codex_RAG"
@@ -27,7 +26,8 @@ class CodexRAGEngine(AgentEngine):
     """The RAG engine — retrieval-only, tailored prompt, grounded answers."""
 
     def __init__(self, graph: KnowledgeGraph, encoder: EncoderLayer,
-                 llm: Optional[DeepSeekProvider] = None, store: Any = None,
+                 llm: Any = None, llm_node: Any = None,
+                 store: Any = None,
                  model: Optional[str] = None, chat_mode: bool = False):
         names = chat_tool_set(AGENT_ID) if chat_mode else tool_set(AGENT_ID)
         super().__init__(

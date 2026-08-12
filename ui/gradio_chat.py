@@ -24,7 +24,7 @@ import gradio as gr  # noqa: E402
 from general_tools.config import Config  # noqa: E402
 from general_tools.graph import KnowledgeGraph  # noqa: E402
 from general_tools.encoder import EncoderLayer  # noqa: E402
-from LLMs.deepseek import DeepSeekProvider, MockProvider  # noqa: E402
+from LLMs import llm_node as _llm_node  # noqa: E402 — LLM IPP node
 from database.notes import NoteStore  # noqa: E402
 from general_tools.construct import tools_node as _shared_tools_node
 from codex_growth import create_agent as make_growth  # noqa: E402
@@ -34,13 +34,15 @@ from codex_normal import create_agent as make_normal  # noqa: E402
 logging.basicConfig(level=logging.WARNING)
 
 
-def _make_provider() -> DeepSeekProvider:
+def _make_provider():
+    """Construct the shared LLM IPP node."""
+    node = _llm_node()
     try:
-        p = DeepSeekProvider(model=Config.get_model())
-        p.chat([{"role": "user", "content": "ping"}], max_tokens=4)
-        return p
-    except Exception:  # noqa: BLE001
-        return MockProvider()
+        node.invoke("chat", {"messages": [{"role": "user", "content": "ping"}], "max_tokens": 4})
+        logger.info("LLM provider: live (via IPP node)")
+    except Exception as exc:
+        logger.warning("DeepSeek unavailable (%s)", exc)
+    return node
 
 
 def load_graph():
@@ -72,9 +74,9 @@ def _load():
     llm = _make_provider()
     agents = {
         # chat surface is READ-ONLY: file-write + graph-mutation tools disabled
-        "codex_growth": make_growth(graph, encoder, llm=llm, store=store, chat_mode=True),
-        "codex_RAG": make_rag(graph, encoder, llm=llm, store=store, chat_mode=True),
-        "codex_normal": make_normal(graph, encoder, llm=llm, store=store, chat_mode=True),
+        "codex_growth": make_growth(graph, encoder, llm_node=llm, store=store, chat_mode=True),
+        "codex_RAG": make_rag(graph, encoder, llm_node=llm, store=store, chat_mode=True),
+        "codex_normal": make_normal(graph, encoder, llm_node=llm, store=store, chat_mode=True),
     }
     return agents, store
 

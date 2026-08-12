@@ -15,10 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from general_tools.engine import AgentEngine
+from graph_agent import AgentEngine
 from general_tools.encoder import EncoderLayer
 from general_tools.graph import KnowledgeGraph
-from LLMs.deepseek import DeepSeekProvider
 
 import time
 
@@ -48,7 +47,7 @@ class RecursiveAgentEngine(AgentEngine):
     the next agent."""
 
     def __init__(self, graph: KnowledgeGraph, encoder: EncoderLayer,
-                 llm: Optional[DeepSeekProvider] = None,
+                 llm: Any = None, llm_node: Any = None,
                  model: Optional[str] = None,
                  agent_id: str = "agent_a1", level: int = 1,
                  toolkit: Any = None,

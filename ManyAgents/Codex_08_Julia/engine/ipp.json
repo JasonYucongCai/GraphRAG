@@ -191,7 +191,7 @@
     },
     {
       "channel_id": "chat_stream",
-      "handler": "ManyAgents.swarm.IPP_object:make_live_chat_stream_handler",
+      "handler": "ManyAgents.swarm.live_handler:make_live_chat_stream_handler",
       "ipp_object": {
         "input": {
           "logical_type": "Task",

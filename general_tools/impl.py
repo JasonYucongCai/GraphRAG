@@ -35,95 +35,24 @@ from general_tools.config import Config
 logger = logging.getLogger("general_tools.impl")
 
 __all__ = [
-    "impl_execute_tool", "impl_list_tools", "impl_describe_tool",
+    "impl_list_tools", "impl_describe_tool",
     "impl_graph_op", "impl_encoder_op", "impl_build_op", "impl_check_op",
     "SKIP_DIRS", "THREAT_PATTERNS",
 ]
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# invoke — the ROUTER (R*_k): name → the target channel's guardrail envelope
+# list / describe — the definitions from the F-file catalog
 # ══════════════════════════════════════════════════════════════════════════
 
-def _target_node(node_key: str, channel: str, op: Optional[str],
-                 payload: dict):
-    """Resolve the route target and invoke it. Returns the payload dict.
 
-    - "self"           → a tools-node channel (its OWN envelope — the
-                         second hop of the chain, both audited)
-    - "database"       → the database node (process singleton)
-    - "social_activity"→ the social node (bound by the platform)
-    """
-    from general_tools.construct import tools_node
-    if node_key == "self":
-        ex = tools_node().executors[channel]
-        if op is None:
-            return ex.invoke(payload).payload
-        return ex.invoke({"op": op, **payload}).payload
-    if node_key == "database":
-        from database.construct import database_node
-        out = database_node().invoke(channel, {"op": op, **payload})
-        return out.payload
-    if node_key == "social_activity":
-        from general_tools.construct import current_social_node
-        node = current_social_node()
-        if node is None:
-            return {"ok": False, "error": "not_connected",
-                    "message": "social layer not connected — run inside the "
-                               "Multi Agent platform"}
-        out = node.invoke(channel, {"op": op, **payload})
-        return out.payload
-    return {"ok": False, "error": "bad_route",
-            "message": f"unknown route target {node_key!r}"}
-
-
-def impl_execute_tool(args: dict) -> dict:
-    """{tool, args, agent_id?, session_id?, workspace_root?, graph?} →
-    {ok, content, error, metadata} — route one tool call to the target
-    channel's guardrail envelope (both hops audited)."""
-    from general_tools.routes import ROUTES
-    from general_tools.catalog import definition
-
-    name = str(args.get("tool", ""))
-    tool_args = dict(args.get("args") or {})
-    route = ROUTES.get(name)
-    if route is None:
-        return {"ok": False,
-                "content": f"[ERROR] Unknown tool: {name!r}",
-                "error": "unknown_tool", "metadata": {}}
-    node_key, channel, op, adapter = route
-
-    meta = {"agent_id": args.get("agent_id") or "",
-            "session_id": args.get("session_id") or "",
-            "workspace_root": args.get("workspace_root") or ""}
-    payload = dict(tool_args)
-    if adapter is not None:
-        payload = adapter(tool_args, meta)
-    # per-agent graph/encoder instances ride through the envelope (the
-    # target impls prefer them over the process-wide bridge bindings)
-    for key in ("graph", "encoder"):
-        if args.get(key) is not None:
-            payload[key] = args[key]
-
-    out = _target_node(node_key, channel, op, payload)
-    if not isinstance(out, dict):
-        return {"ok": True, "content": str(out), "error": None,
-                "metadata": {}}
-    if out.get("ok"):
-        extras = {k: v for k, v in out.items()
-                  if k not in ("ok", "message", "content", "error", "text")}
-        # prefer:  text (pre-formatted) > content > message > serialize
-        content = (out.get("text")
-                   or out.get("content")
-                   or out.get("message")
-                   or _serialize_social_result(out))
-        return {"ok": True,
-                "content": str(content),
-                "error": None, "metadata": extras}
-    return {"ok": False,
-            "content": str(out.get("message") or out.get("content")
-                           or out.get("error") or "operation failed"),
-            "error": out.get("error"), "metadata": {}}
+def _catalog():
+    from general_tools.construct import current_catalog
+    cat = current_catalog()
+    if not cat:
+        from general_tools.catalog import build_catalog
+        cat = build_catalog()
+    return cat
 
 
 def _serialize_social_result(out: dict) -> str:
@@ -250,15 +179,6 @@ def _serialize_social_result(out: dict) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 # list / describe — the definitions from the F-file catalog
 # ══════════════════════════════════════════════════════════════════════════
-
-
-def _catalog():
-    from general_tools.construct import current_catalog
-    cat = current_catalog()
-    if not cat:
-        from general_tools.catalog import build_catalog
-        cat = build_catalog()
-    return cat
 
 
 def impl_list_tools(args: dict) -> dict:

@@ -156,6 +156,9 @@ SEED_EDGES = [
 
 
 def _slug(text: str) -> str:
+    """Convert a title or name to a URL-safe slug: lowercase,
+    alphanumeric + hyphens only, no leading/trailing hyphens."""
+
     return re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_")
 
 

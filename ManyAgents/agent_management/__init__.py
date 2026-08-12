@@ -1,7 +1,8 @@
 """
-agent_management - agent identity, cards, and datasets.
+agent_management — agent identity, cards, and datasets.
 
-Moved from IPP_Social/agents/ to ManyAgents/agent_management/.
+Domain types for the ManyAgents platform: AgentCard, Comment, Capacity,
+Constraints, RandomProperty, AgentDataset.
 """
 from ManyAgents.agent_management.agent_card import AgentCard, Comment
 from ManyAgents.agent_management.capacity import DIMENSIONS, Capacity

@@ -2,49 +2,25 @@
 # Continuity Supplemental AI Safety License (HCASL) v0.2 - see
 # HCASL_License_v0.2.txt. HCASL conditions all AI-related use of this software.
 
-# ═══════════════════════════════════════════════════════════════════════════
-# IPP v0.2.8 — THIS FILE REALIZES Ξ (the Executor) + H OF ONE NODE
-# ═══════════════════════════════════════════════════════════════════════════
-# Pipeline:  F (this folder's ipp.json) × 𝒢 ──► Γ (ipp/constructor.py)
-#            ──► (Ω_k, Ξ_k) per channel — this module owns the Ξ side
-#            AND the handler H that the Object binds.
-#
-# This is the folder's PUBLIC IPP SURFACE — the uniform 5-function
-# contract every folder exposes (the platform's decentralized entry
-# points, spec §7.3):
-#     ipp_definition()  → F (the folder's IPP Json File)
-#     get_ipp_executor()/ipp_executor() → the constructed Ξ (guardrail
-#         envelope: ι_pre → π → [Ω.run] → ι_post → ρ → τ*_dispatch)
-#     execute_ipp(payload) → guarded execution through that envelope
-#     register_ipp()    → register this node in the decentralized
-#         registry (graph context 𝒢, §3.2)
-#
-# The Executor owns the ENFORCEMENT layers of the ten-layer taxonomy
-# (spec §7.1, Theorem 3): Λ5 Integrity (ξ_decl.integrity), Λ7 Policy,
-# Λ8 Provenance, Λ9 Error, Λ10 Edge/Topology (external K_τ + internal
-# topology). The COMPUTATION layers (Λ1–Λ4, Λ6) live in the sibling
-# ipp_object.py.
-#
-# The handler H defined here (`_handler`) is the node's core
-# transformation — a pure routing function (routers), a real engine
-# driver (agents.*), a provider driver (llms.*), etc. It runs INSIDE
-# the envelope only (Invariant I2 — no bypass).
-# ═══════════════════════════════════════════════════════════════════════════
 """
-tools/copilot/ipp_executor.py — Copilot Toolset IPP v0.2.8 Executor
-                            (scoped execution)
+agent_a0_tools.ipp_executor — IPP v0.2.8 Executor (Ξ_k) for agent_a0's tools.
 
-First-class IPP node (tools.copilot):
+The Executor owns the ENFORCEMENT layers of the ten-layer taxonomy (spec §7.1):
+  Λ5 Integrity (ξ_decl.integrity), Λ7 Policy, Λ8 Provenance, Λ9 Error,
+  Λ10 Edge/Topology (external K_τ + internal topology).
 
-  tools/copilot/ipp.json ──► Γ ──► this Ξ (guardrail envelope)
-       (toolset port,              │
-        copilot process)           └── binds H → global ToolRegistry
+Every tool invocation flows through the guardrail envelope:
+  ι_pre → π → Ω (handler) → ι_post → ρ (hash-chain audit) → τ*_dispatch.
 
-Operations (input port): list_tools, tool_defs, tool_info, execute,
-catalog, count. Out-of-scope tools raise → the envelope's ε routes them
-through the fallback chain (platform.harness, §7.5.6).
+The COMPUTATION layers (Λ1–Λ4, Λ6) live in the sibling ipp_object.py.
+This module is the folder's PUBLIC IPP SURFACE — the uniform 5-function
+contract every IPP folder exposes (spec §7.3):
+    ipp_definition()    → F (the folder's IPP Json File)
+    get_ipp_executor()  → the constructed Ξ (guardrail envelope)
+    execute_ipp(payload)→ guarded execution through that envelope
+    register_ipp()      → register this node in the decentralized
+                          registry (GraphContext 𝒢, §3.2)
 """
-
 from __future__ import annotations
 
 import logging

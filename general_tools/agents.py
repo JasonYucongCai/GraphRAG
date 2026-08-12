@@ -20,9 +20,8 @@ from typing import Any, Optional
 
 from general_tools.config import Config
 from general_tools.encoder import EncoderLayer
-from general_tools.engine import AgentEngine
+from graph_agent import AgentEngine
 from general_tools.graph import KnowledgeGraph, LocalGraph
-from general_tools.IPP import IPP, ToolResult
 
 logger = logging.getLogger("general_tools.agents")
 
@@ -42,7 +41,7 @@ Your job is recursive self-improvement:
 Respect limits: ≤{max_subjects} new nodes per run. Never create duplicates.""" 
 
 
-class NodeAgent(IPP):
+class NodeAgent:
     """
     The primary agent: operates on a node using its local graph (Layer 1–3).
 
@@ -54,11 +53,14 @@ class NodeAgent(IPP):
     name = "node-agent"
 
     def __init__(self, graph: KnowledgeGraph, encoder: EncoderLayer, llm=None,
+                 llm_node=None,
                  model: Optional[str] = None):
-        super().__init__()
+        """Create a node-anchored agent.
+        Wraps an AgentEngine — the operate() method grounds a task
+        against a specific node's local graph + encoder evidence."""
         self.graph = graph
         self.encoder = encoder
-        self.engine = AgentEngine(graph, encoder, llm=llm, model=model)
+        self.engine = AgentEngine(graph, encoder, llm=llm, llm_node=llm_node, model=model)
         self.name = "node-agent"
 
     def operate(self, node_ref: Any, task: str, verbose: bool = True) -> dict:
@@ -119,13 +121,9 @@ class NodeAgent(IPP):
             "tokens": self.engine._session_tokens,
         }
 
-    # IPP wrapper
-    def transform(self, inp: dict) -> dict:
-        return self.operate(inp["node_ref"], inp["task"],
-                            verbose=inp.get("verbose", False))
 
 
-class GrowthAgent(IPP):
+class GrowthAgent:
     """
     The recursive self-improvement agent (Layer 4).
 
@@ -139,11 +137,12 @@ class GrowthAgent(IPP):
     name = "growth-agent"
 
     def __init__(self, graph: KnowledgeGraph, encoder: EncoderLayer, llm=None,
+                 llm_node=None,
                  model: Optional[str] = None):
-        super().__init__()
+
         self.graph = graph
         self.encoder = encoder
-        self.engine = AgentEngine(graph, encoder, llm=llm, model=model,
+        self.engine = AgentEngine(graph, encoder, llm=llm, llm_node=llm_node, model=model,
                                   system_prompt=GROWTH_PROMPT.format(
                                       max_subjects=Config.MAX_NEW_SUBJECTS_PER_RUN))
         self.name = "growth-agent"

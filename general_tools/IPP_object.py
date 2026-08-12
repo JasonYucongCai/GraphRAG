@@ -30,7 +30,7 @@ def _run(fn):
 # invoke — the router (R*_k): tool name → the target channel's envelope
 # ════════════════════════════════════════════════════════════════════════
 def make_invoke_handler(bindings: dict):
-    from general_tools.impl import impl_execute_tool
+    from general_tools.construct import impl_execute_tool
 
     def handler(payload: dict, context: dict) -> dict:
         return _run(lambda: impl_execute_tool(payload))

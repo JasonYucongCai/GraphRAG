@@ -1,13 +1,10 @@
 """
-swarm — the concurrent multi-agent runtime of the Multi Agent portal.
+swarm — the concurrent multi-agent runtime.
 
-Each ManyAgents Codex agent gets its own IPP identity (finalized
-engine/tools IPP.json), its own engine node + tools node constructed
-into the shared GraphContext 𝒢, an AgentRuntime worker thread, and the
-SwarmManager that runs many of them together under one goal.
+AgentRuntime workers, SwarmManager orchestration, SwarmBus for live SSE
+events, SocialResponder for the conversation loop, and the live chat-stream
+handler bound into per-agent engine nodes.
 """
-from __future__ import annotations
-
 from ManyAgents.swarm.agent_ipp import (
     LIVE_CHAT_STREAM_HANDLER, build_engine, construct_agent_nodes,
     finalize_agent_ipp, finalize_all_agents, list_agent_folders,

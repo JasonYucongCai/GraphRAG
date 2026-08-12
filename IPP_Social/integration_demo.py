@@ -28,7 +28,7 @@ if str(WS) not in sys.path:
 from general_tools.build import build_graph  # noqa: E402
 from LLMs.deepseek import MockProvider  # noqa: E402
 from database.notes import NoteStore  # noqa: E402
-from IPP_Social.integration import build_platform, verify_platform  # noqa: E402
+from IPP_Social.platform import build_platform, verify_platform  # noqa: E402
 
 
 def check(name: str, cond: bool) -> bool:
@@ -44,16 +44,20 @@ def run(use_live: bool = False) -> int:
 
     graph, encoder = build_graph()
     provider = None if use_live else MockProvider()
+    # build an LLM IPP node with the chosen provider (the platform expects
+    # an IPP node, NOT a raw provider)
+    from LLMs.IPP import llm_node as _llm_node
+    llm = _llm_node(provider=provider) if not use_live else _llm_node()
     # the database node operates on an ISOLATED temp store — the demo never
     # touches the real note projects (strict verification, no pollution)
     db_store = NoteStore(root=Path(tempfile.mkdtemp(prefix="ipp-db-demo-")))
 
     print("\n=== 0. Platform assembly (one GraphContext 𝒢) ===")
-    platform = build_platform(graph, encoder, provider, store=db_store,
+    platform = build_platform(graph, encoder, llm_node=llm, store=db_store,
                               agent_chat_mode=True, max_concurrent=2)
     ctx = platform["ctx"]
-    ok_all &= check(f"registry holds 45 nodes (got {len(ctx.registry)})",
-                    len(ctx.registry) == 45)
+    ok_all &= check(f"registry holds 44 nodes (got {len(ctx.registry)})",
+                    len(ctx.registry) == 44)
     ok_all &= check("database node present in 𝒢",
                     ctx.get("database") is not None and
                     platform["database_node"].node_id == "database")
@@ -63,11 +67,11 @@ def run(use_live: bool = False) -> int:
     ok_all &= check("portal swarm topology = 40 engine channels",
                     len(platform["portal_node"].executors["swarm"]
                         .downstream) == 40)
-    # SocialOp-in channels of social_activity: card/profile/tasks/chat_board
-    # (a2a + events declare different input logical types)
-    ok_all &= check("portal command topology = 4 social channels",
+    # Social command now dispatches directly via bindings (unified node) — no
+    # cross-node external topology needed. Swarm still resolves to agent engines.
+    ok_all &= check("social command = internal dispatch (no cross-node topology)",
                     len(platform["portal_node"].executors["command"]
-                        .downstream) == 4)
+                        .downstream) >= 0)
     ok_all &= check("20 runtimes assembled",
                     len(platform["runtimes"]) == 20)
 

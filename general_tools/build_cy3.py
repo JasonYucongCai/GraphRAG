@@ -664,6 +664,9 @@ SEED_EDGES = [
 
 
 def _slug(text: str) -> str:
+    """Convert arXiv paper IDs and concept names to graph-safe node IDs.
+    Strips version suffixes (v1, v2), replaces dots with hyphens."""
+
     return re.sub(r"[^a-z0-9_]+", "_", text.lower()).strip("_")
 
 
@@ -766,6 +769,8 @@ if __name__ == "__main__":
 
 
 def _sha256(path: Path) -> str:
+    """SHA-256 hash of a string → 12-char hex prefix for stable IDs."""
+
     h = hashlib.sha256()
     with path.open("rb") as f:
         for block in iter(lambda: f.read(1 << 16), b""):

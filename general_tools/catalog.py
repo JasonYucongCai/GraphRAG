@@ -30,6 +30,10 @@ _FILES = {
 
 
 def _channel_decl(node_key: str, channel_id: str) -> Optional[dict]:
+    """Extract the per-op schema branch from a channel's anyOf input
+    schema. Returns the branch dict for the given op, or an empty dict
+    if the op is not declared in the F-file's channel schemas."""
+
     path = _FILES.get(node_key)
     if path is None or not path.exists():
         return None
@@ -92,6 +96,10 @@ def build_catalog() -> dict:
 
 
 def names(catalog: dict) -> list[str]:
+    """Return the sorted list of all catalogued tool names (60+).
+    Derived mechanically from the F-file's input schemas.
+    No separate BaseTool layer — the catalog IS the F-file."""
+
     return sorted(catalog)
 
 

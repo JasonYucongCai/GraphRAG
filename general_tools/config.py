@@ -89,10 +89,15 @@ class _ConfigMeta(type):
 
     @property
     def DB_DIR(cls) -> Path:
+        """The database/ root folder (canonical project-scoped layout)."""
+
         return cls.db_root()
 
     @property
     def GRAPH_DIR(cls) -> Path:
+        """The ACTIVE project's graph_data/ folder (resolved dynamically
+        from database/.active — no stale cached paths)."""
+
         return cls.graph_dir()
 
     @property

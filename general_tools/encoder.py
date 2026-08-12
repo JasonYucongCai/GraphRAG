@@ -26,7 +26,6 @@ from typing import Any, Optional
 import numpy as np
 
 from general_tools.config import Config
-from general_tools.IPP import IPP
 
 logger = logging.getLogger("general_tools.encoder")
 
@@ -42,6 +41,14 @@ class Embedder:
     dim: int = Config.EMBED_DIM
 
     def embed_text(self, text: str) -> list[float]:
+        """Embed a batch of text strings → list of numpy vectors.
+        Uses the sentence-transformers model for efficient batch encoding."""
+
+        """Embed a single text string → numpy vector using the configured
+        embedding model (default: sentence-transformers/all-MiniLM-L6-v2).
+        Returns a list[float] of dimension 384.
+        This is the TOP-LEVEL helper; the EncoderLayer delegates to it."""
+
         raise NotImplementedError
 
     def embed(self, text: str) -> list[float]:
@@ -153,7 +160,7 @@ class VectorIndex:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-class EncoderLayer(IPP):
+class EncoderLayer:
     """
     The encoder-like capability of the network:
 
@@ -167,7 +174,6 @@ class EncoderLayer(IPP):
     def __init__(self, embedder: Optional[Embedder] = None,
                  chunk_chars: int = Config.CHUNK_CHARS,
                  overlap: int = Config.CHUNK_OVERLAP):
-        super().__init__()
         self.embedder = embedder or HashEmbedder()
         self.chunk_chars = chunk_chars
         self.overlap = overlap

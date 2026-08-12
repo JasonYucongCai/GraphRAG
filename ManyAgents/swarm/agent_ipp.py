@@ -32,7 +32,7 @@ from general_tools.agent_specs import tool_set
 MANY_AGENTS_ROOT = Path(__file__).resolve().parents[2] / "ManyAgents"
 
 # the live-streaming handler bound into every agent's chat_stream channel
-LIVE_CHAT_STREAM_HANDLER = "ManyAgents.swarm.IPP_object:make_live_chat_stream_handler"
+LIVE_CHAT_STREAM_HANDLER = "ManyAgents.swarm.live_handler:make_live_chat_stream_handler"
 
 
 def list_agent_folders(root: Optional[Path | str] = None) -> list[Path]:
@@ -142,17 +142,19 @@ def construct_agent_nodes(agent_id: str, engine, ctx: GraphContext,
     return engine_node, tools_node
 
 
-def build_engine(agent_id: str, graph, encoder, provider, store=None,
+def build_engine(agent_id: str, graph, encoder, llm_node, store=None,
                  chat_mode: bool = True, social_node=None):
     """Instantiate the agent's engine class with its personality prompt.
 
-    ``social_node`` is the social_activity IPP node — bound as
+    ``llm_node`` is the shared LLM IPP node — ALL agents share ONE LLM
+    node so every call carries a hash-chained audit record (guardrail
+    envelope). ``social_node`` is the social_activity IPP node — bound as
     ``engine._social_node`` so the agent's social tools reach the social
     layer by default; the system prompt is extended with the social
     instructions (discovery).
     """
     module = importlib.import_module(f"ManyAgents.{agent_id}.engine")
-    engine = module.CodexNormalEngine(graph, encoder, llm=provider,
+    engine = module.CodexNormalEngine(graph, encoder, llm_node=llm_node,
                                       store=store, chat_mode=chat_mode)
     engine.name = agent_id
     engine.agent_id = agent_id

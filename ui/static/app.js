@@ -38,8 +38,9 @@ const state = {
   view: "global",         // global | local
   depth: 3,
   selected: null,
-  // canvas geometry + interaction
-  w: 900, h: 640,
+  // canvas geometry + interaction — measured from the actual SVG element on first render
+  w: 0, h: 0,
+  _sized: false,          // true once the first real measurement arrives
   transform: { k: 1, x: 0, y: 0 },
   drag: null,             // {mode:'node'|'pan', startX, startY, origX, origY, moved}
 };
@@ -256,7 +257,7 @@ const LAYOUT_PAD = 70;   // room for labels around the edges
 function layoutNodes() {
   const W = state.w, H = state.h;
   const nodes = state.viewNodes, n = nodes.length, edges = state.viewEdges;
-  if (!n) return;
+  if (!n || W <= 0 || H <= 0) return;   // skip until canvas is measured
 
   // initial placement: circle + jitter (breaks exact overlaps deterministically)
   const R = Math.min(W, H) * 0.38;
@@ -326,8 +327,18 @@ function layoutNodes() {
 
 // ── graph: render (two layers — scaled world + constant-size labels) ───────
 function renderGraph() {
+  // Guard: if nodes have no coordinates yet (canvas not sized), do nothing.
+  // This prevents `NaN` coords that produce an invisible, broken SVG.
+  const first = state.viewNodes[0];
+  if (!first || first.x === undefined || first.y === undefined) return;
+
   const svg = $("#graph-canvas");
   const { k, x, y } = state.transform;
+
+  // viewBox matches the layout coordinate space so the graph fills the
+  // canvas correctly regardless of the SVG element's CSS size.
+  svg.setAttribute("viewBox", `0 0 ${state.w} ${state.h}`);
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
   let markers = `<defs>
     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
@@ -505,12 +516,17 @@ function setupCanvasInteractions() {
       renderGraph();
     }
   });
-  // track canvas size — re-render preserving positions
+  // track canvas size — re-layout on first measurement, then re-render on resize
   if (window.ResizeObserver) {
     const ro = new ResizeObserver(() => {
       const rect = svg.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
+      if (rect.width > 0 && rect.height > 0 && (rect.width !== state.w || rect.height !== state.h)) {
         state.w = rect.width; state.h = rect.height;
+        if (!state._sized && state.viewNodes.length) {
+          state._sized = true;
+          layoutNodes();     // first measurement: compute layout in the real canvas
+        }
+        // On resize: re-render (viewBox handles scaling) — do NOT re-layout
         if (state.viewNodes.length) renderGraph();
       }
     });
@@ -518,8 +534,12 @@ function setupCanvasInteractions() {
   } else {
     window.addEventListener("resize", () => {
       const rect = svg.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
+      if (rect.width > 0 && rect.height > 0 && (rect.width !== state.w || rect.height !== state.h)) {
         state.w = rect.width; state.h = rect.height;
+        if (!state._sized && state.viewNodes.length) {
+          state._sized = true;
+          layoutNodes();
+        }
         if (state.viewNodes.length) renderGraph();
       }
     });
@@ -527,13 +547,32 @@ function setupCanvasInteractions() {
 }
 
 // ── view loading: global vs local ──────────────────────────────────────────
+function _ensureCanvasSize() {
+  // Synchronous: force-measure the canvas so layoutNodes() sees real
+  // dimensions on the VERY FIRST call, before any async ResizeObserver
+  // fires.  Without this, layoutNodes() skips (w=0, h=0) and the first
+  // renderGraph() produces NaN coordinates → black canvas.
+  if (state.w <= 0 || state.h <= 0) {
+    const rect = $("#graph-canvas").getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      state.w = rect.width;
+      state.h = rect.height;
+    }
+  }
+}
+
 function setViewData(nodes, edges, anchor, info) {
   state.viewNodes = nodes.map((n) => ({ ...n }));
   state.viewEdges = edges;
   state.viewAnchor = anchor;
   $("#canvas-info").textContent = info;
-  layoutNodes();
-  renderGraph();
+  _ensureCanvasSize();     // ← synchronous measurement before layout
+  if (state.w > 0 && state.h > 0) {
+    layoutNodes();
+    renderGraph();
+  }
+  // else: canvas is zero-size (hidden tab) — ResizeObserver will pick it up
+  // as soon as the canvas becomes visible and call layoutNodes + renderGraph.
 }
 
 async function loadGraph() {

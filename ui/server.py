@@ -40,7 +40,8 @@ from general_tools.config import Config  # noqa: E402
 from general_tools.graph import KnowledgeGraph  # noqa: E402
 from general_tools.encoder import EncoderLayer  # noqa: E402
 from general_tools.build import build_graph, export_backward_compatible  # noqa: E402
-from LLMs.deepseek import DeepSeekProvider, MockProvider  # noqa: E402
+from LLMs.deepseek import MockProvider  # noqa: E402 — offline fallback only
+from LLMs import llm_node as _llm_node, LLMResult  # noqa: E402 — IPP LLM node
 from general_tools.agents import NodeAgent, GrowthAgent  # noqa: E402
 from database.notes import NoteStore, Note  # noqa: E402
 from database.construct import bind_database, database_node  # noqa: E402
@@ -54,7 +55,8 @@ logger = logging.getLogger("graph.ui")
 _lock = threading.RLock()
 graph: KnowledgeGraph | None = None
 encoder: EncoderLayer | None = None
-provider: DeepSeekProvider | None = None
+provider: Any = None
+_llm_node_instance: Any = None  # the shared LLM IPP node
 node_agent: NodeAgent | None = None
 growth_agent: GrowthAgent | None = None
 store: NoteStore | None = None
@@ -75,22 +77,24 @@ def _make_codex_agents(provider_, store_, chat_mode: bool = False) -> dict:
     from codex_growth import create_agent as mk_growth
     kw = {"chat_mode": chat_mode} if chat_mode else {}
     return {
-        "codex_normal": mk_normal(graph, encoder, llm=provider_, store=store_, **kw),
-        "codex_RAG": mk_rag(graph, encoder, llm=provider_, store=store_, **kw),
-        "codex_growth": mk_growth(graph, encoder, llm=provider_, store=store_, **kw),
+        "codex_normal": mk_normal(graph, encoder, llm_node=provider_, store=store_, **kw),
+        "codex_RAG": mk_rag(graph, encoder, llm_node=provider_, store=store_, **kw),
+        "codex_growth": mk_growth(graph, encoder, llm_node=provider_, store=store_, **kw),
     }
 
-
-def _make_provider() -> DeepSeekProvider:
-    """Real DeepSeek provider if the key is available, else offline mock."""
+def _make_provider() -> Any:
+    """Construct the shared LLM IPP node (real DeepSeek if key available, else mock).
+    Returns the IPP node — all agent engines will call the LLM through it."""
+    from LLMs import llm_node as _ln
+    node = _ln()
     try:
-        p = DeepSeekProvider(model=Config.get_model())
-        p.chat([{"role": "user", "content": "ping"}], max_tokens=4)
-        logger.info("LLM provider: deepseek:%s (live)", p.model)
-        return p
+        # Verify connectivity through the node
+        r = node.invoke("chat", {"messages": [{"role": "user", "content": "ping"}],
+                                 "max_tokens": 4})
+        logger.info("LLM provider: deepseek-v4-flash (live, via IPP node)")
     except Exception as exc:  # noqa: BLE001
         logger.warning("DeepSeek unavailable (%s) → using MockProvider", exc)
-        return MockProvider()
+    return node
 
 
 def _auto_open_supplements(store_: NoteStore, graph_: KnowledgeGraph) -> list[dict]:
@@ -161,8 +165,8 @@ def _load_or_build(graph_dir: Optional[Path] = None) -> None:
         graph.pagerank()
         _shared_tools_node()
         provider = _make_provider()
-        node_agent = NodeAgent(graph, encoder, llm=provider)
-        growth_agent = GrowthAgent(graph, encoder, llm=provider)
+        node_agent = NodeAgent(graph, encoder, llm_node=provider)
+        growth_agent = GrowthAgent(graph, encoder, llm_node=provider)
         store = NoteStore()
         # the database IPP node — the store's single IPP surface
         # (Γ ⊩ database/IPP.json × 𝒢; the platform registers the same
@@ -231,7 +235,7 @@ def health():
         "ok": True,
         "workspace": str(Config.WORKSPACE_ROOT),
         "assets": str(Config.ASSETS_DIR),
-        "provider": provider.name if provider else None,
+        "provider": getattr(provider, "node_id", "llm") if provider else None,
         "model": Config.get_model(),
         "available_models": Config.AVAILABLE_MODELS,
         "tools": [d.get("function", {}).get("name") for d in _shared_tools_node().invoke("list", {}).payload.get("definitions", [])],
@@ -822,8 +826,8 @@ def rebuild():
         else:
             graph, encoder = build_graph()
         graph.pagerank()
-        node_agent = NodeAgent(graph, encoder, llm=provider)
-        growth_agent = GrowthAgent(graph, encoder, llm=provider)
+        node_agent = NodeAgent(graph, encoder, llm_node=provider)
+        growth_agent = GrowthAgent(graph, encoder, llm_node=provider)
         codex_agents = _make_codex_agents(provider, store, chat_mode=True)
         # the database node reads the graph LIVE from the shared bridge —
         # rebind so its handlers operate on the fresh graph (audit history
@@ -853,10 +857,10 @@ def _ensure_platform():
     global _platform
     with _lock:
         if _platform is None:
-            from IPP_Social.integration import build_platform
+            from IPP_Social.platform import build_platform
             logger.info("assembling Multi Agent platform (strict IPP v0.2.8)…")
             _platform = build_platform(
-                graph, encoder, provider, store,
+                graph, encoder, llm_node=provider, store=store,
                 agent_chat_mode=True, max_concurrent=4)
             n_nodes = len(_platform["ctx"].registry)
             logger.info("platform ready: %d IPP nodes in 𝒢 (portal=%s, "
@@ -882,8 +886,8 @@ def _refresh_platform() -> dict:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("platform stop during refresh: %s", exc)
             _platform = None
-        from IPP_Social.integration import build_platform
-        _platform = build_platform(graph, encoder, provider, store,
+        from IPP_Social.platform import build_platform
+        _platform = build_platform(graph, encoder, llm_node=provider, store=store,
                                    agent_chat_mode=True, max_concurrent=4)
         n_nodes = len(_platform["ctx"].registry)
         logger.info("platform refreshed: %d IPP nodes in 𝒢 (portal=%s, "
@@ -1168,18 +1172,24 @@ def recursive_chat():
         with _lock:
             from recursive_agents.agent_a1.agent_a1_tools.tool_registry import AgentA1Toolkit
             from recursive_agents.runtime.engine import RecursiveAgentEngine
-            from LLMs.deepseek import MockProvider
 
-            # Per-request provider: independent per-portal model selection
-            llm_for_chat = DeepSeekProvider(model=model_id) if live else MockProvider()
+            # Use shared LLM IPP node for live chat, MockProvider for offline
+            if live:
+                _llm = provider
+                _llm_kw = {"llm_node": _llm}
+            else:
+                from LLMs.deepseek import MockProvider
+                _llm = MockProvider()
+                _llm_kw = {"llm": _llm}
             tk = AgentA1Toolkit(agent_id=agent_id, ws_root=str(Config.WORKSPACE_ROOT),
-                                graph=graph, encoder=encoder, llm=llm_for_chat)
+                                graph=graph, encoder=encoder, llm=_llm)
             tk.register_all()
             m = _re.search(r"agent_a(\d+)", agent_id)
             level = int(m.group(1)) if m else 1
 
-            engine = RecursiveAgentEngine(graph=graph, encoder=encoder, llm=llm_for_chat,
-                                          agent_id=agent_id, level=level, toolkit=tk)
+            engine = RecursiveAgentEngine(graph=graph, encoder=encoder,
+                                          agent_id=agent_id, level=level, toolkit=tk,
+                                          **_llm_kw)
             # Use chat_stream for full trace visibility, deduplicating text/message
             trace_events = []
             answer = ""
@@ -1264,18 +1274,18 @@ def recursive_instruct():
             from recursive_agents.agent_a1.agent_a1_tools.tool_registry import AgentA1Toolkit
             tk = AgentA1Toolkit(agent_id=agent_id, ws_root=str(Config.WORKSPACE_ROOT),
                                 graph=graph, encoder=encoder,
-                                llm=DeepSeekProvider(model=model_id))
+                                llm=provider)        # pass IPP node
             tk.register_all()
             _sys.stderr.write(f"RECURSIVE_INSTRUCT: toolkit ready ({tk.count()} tools)\n")
             _sys.stderr.flush()
 
-            # Step 2: create engine
+            # Step 2: create engine (uses shared LLM IPP node)
             from recursive_agents.runtime.engine import RecursiveAgentEngine
             import re
             m = re.search(r"agent_a(\d+)", agent_id)
             level = int(m.group(1)) if m else 1
             engine = RecursiveAgentEngine(graph=graph, encoder=encoder,
-                                          llm=DeepSeekProvider(model=model_id),
+                                          llm_node=provider,
                                           agent_id=agent_id, level=level, toolkit=tk)
             _sys.stderr.write(f"RECURSIVE_INSTRUCT: engine ready, starting chat_stream\n")
             _sys.stderr.flush()
@@ -1322,6 +1332,37 @@ def recursive_diff():
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
+def _add_proxy_routes(app, prefix: str, target_url: str) -> None:
+    """Forward all requests under *prefix* to *target_url* via HTTP.
+    The frontend SPA on the Control Center can call /api/multiagent/* or
+    /api/recursive/* without knowing the child-process ports."""
+    from flask import request as flask_request
+    import urllib.request as _ur, json as _json
+
+    def _proxy(**kwargs):
+        path = flask_request.full_path.lstrip("/")
+        url = f"{target_url}/{path}"
+        body = flask_request.get_data()
+        headers = {"Content-Type": flask_request.content_type or "application/json"}
+        try:
+            req = _ur.Request(url, data=body, headers=headers,
+                              method=flask_request.method)
+            with _ur.urlopen(req, timeout=300) as resp:
+                content = resp.read()
+                return Response(content, status=resp.status,
+                                content_type=resp.headers.get("Content-Type",
+                                                              "application/json"))
+        except Exception as exc:
+            return jsonify({"error": f"proxy error: {exc}"}), 502
+
+    # Register for each HTTP method the child needs
+    prefix_clean = prefix.rstrip("/")
+    app.add_url_rule(f"/{prefix_clean}/<path:dummy>", f"proxy_{prefix_clean}",
+                     _proxy, methods=["GET", "POST", "PUT", "DELETE"])
+    app.add_url_rule(f"/{prefix_clean}", f"proxy_{prefix_clean}_base",
+                     _proxy, methods=["GET", "POST", "PUT", "DELETE"])
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Graph Knowledge Network UI")
     parser.add_argument("--host", default="127.0.0.3", help="bind host (default 127.0.0.3)")
@@ -1333,11 +1374,102 @@ def main() -> None:
              "vectors/index.json (e.g. database/calabiyau3fold/graph_data "
              "for the Calabi-Yau graph)",
     )
+    parser.add_argument(
+        "--mode", default="control",
+        choices=["control", "multiagent", "recursive"],
+        help="Run mode: control (full server), multiagent, or recursive "
+             "(default: control)")
+    parser.add_argument(
+        "--remote-backend", default="", metavar="URL",
+        help="Control Center base URL (e.g. http://127.0.0.3:8000) — used "
+             "by multiagent/recursive modes to forward shared tool calls")
+    parser.add_argument(
+        "--orchestrated", action="store_true",
+        help="Set by the orchestrator: enable proxy routes to child "
+             "processes for /api/multiagent/* and /api/recursive/*. "
+             "Without this flag, control mode runs all three portals "
+             "in-process (standalone).")
     args = parser.parse_args()
 
-    _load_or_build(Path(args.graph) if args.graph else None)
-    logger.info("UI ready → http://%s:%d", args.host, args.port)
+    mode = args.mode
+
+    # ── remote backend (multi-process) ───────────────────────────────────
+    if args.remote_backend:
+        from general_tools.construct import set_remote_backend
+        from IPP.IPP_multiprocess_config import LOCAL_NODE_KEYS
+        local_keys = LOCAL_NODE_KEYS.get(mode, set())
+        set_remote_backend(args.remote_backend, local_keys)
+        logger.info("remote backend: %s (local keys: %s)",
+                    args.remote_backend, sorted(local_keys) if local_keys else "(none)")
+
+    # ── mode dispatch ────────────────────────────────────────────────────
+    if mode == "multiagent":
+        _start_multiagent_mode(args)
+    elif mode == "recursive":
+        _start_recursive_mode(args)
+    else:
+        _start_control_mode(args, orchestrated=args.orchestrated)
+
+    logger.info("UI ready (mode=%s) → http://%s:%d", mode, args.host, args.port)
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
+
+
+def _start_control_mode(args, *, orchestrated: bool = False) -> None:
+    """Full server: graph, encoder, tools, database, LLM, agents, internal API.
+
+    When ``orchestrated`` is True, proxy routes forward /api/multiagent/*
+    and /api/recursive/* to child processes.  When False (standalone mode),
+    all three portals run in-process — no child processes needed.
+    """
+    _load_or_build(Path(args.graph) if args.graph else None)
+
+    # Register the internal API bridge for child-process tool dispatch
+    from IPP.IPP_multiprocess_bridge import bridge
+    app.register_blueprint(bridge)
+
+    if orchestrated:
+        # Proxy multi-agent and recursive-agent API calls to child processes.
+        from IPP.IPP_multiprocess_config import (
+            MULTIAGENT_PORT, RECURSIVE_PORT, HOST,
+        )
+        _add_proxy_routes(app, "api/multiagent",
+                          f"http://{HOST}:{MULTIAGENT_PORT}")
+        _add_proxy_routes(app, "api/recursive",
+                          f"http://{HOST}:{RECURSIVE_PORT}")
+
+
+def _start_multiagent_mode(args) -> None:
+    """Multi Agent portal only: social platform + 20-agent swarm.
+
+    Shared resources (graph, encoder, database, codex tools) are forwarded
+    to the Control Center via HTTP (configured by --remote-backend).
+    """
+    global graph, encoder, provider, store, _platform
+
+    # Minimal shared state — the remote backend handles actual ops
+    graph = KnowledgeGraph()
+    encoder = EncoderLayer()
+    store = NoteStore()
+    provider = _make_provider()
+
+    # Assemble the Multi Agent platform (social node + 20 agents + swarm)
+    from IPP_Social.platform import build_platform
+    logger.info("assembling Multi Agent platform (strict IPP v0.2.8)…")
+    _platform = build_platform(
+        graph, encoder, llm_node=provider, store=store,
+        agent_chat_mode=True, max_concurrent=4)
+    n_nodes = len(_platform["ctx"].registry)
+    logger.info("Multi Agent platform ready: %d IPP nodes", n_nodes)
+
+
+def _start_recursive_mode(args) -> None:
+    """Recursive Agent portal only: agent chain + construction tools.
+
+    Shared resources are forwarded to the Control Center via HTTP.
+    """
+    global provider
+    provider = _make_provider()
+    _load_recursive_module()
 
 
 if __name__ == "__main__":

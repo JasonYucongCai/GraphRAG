@@ -96,11 +96,16 @@ def chat_tool_set(agent_id: str) -> list[str]:
 
 
 def tool_set(agent_id: str) -> list[str]:
+    """Return the tool name allow-list for the growth agent.
+    Includes graph mutations (register_node, link_nodes, infer_edges)
+    plus the full read surface. The chat surface gets a read-only subset
+    via chat_tool_set()."""
+
     return TOOL_SETS.get(agent_id, TOOL_SETS[DEFAULT_AGENT])
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# System prompts — tailored per agent with project-structure awareness
+# System prompts — loaded from each agent's system_prompt.md (canonical source)
 # ══════════════════════════════════════════════════════════════════════════════
 
 WORKSPACE_LAYOUT = """\
@@ -121,80 +126,20 @@ The knowledge graph stores nodes (subjects/papers/concepts) with typed edges.
 Each node is also a Markdown note in database/<project>/nodes/ with a
 Version Control Log at the bottom (every change appends an entry)."""
 
-PROMPT_GROWTH = f"""You are **codex_growth**, the GROWTH agent of the Graph Knowledge Network.
-
-## Mission
-1. IMPROVE node notes (.md files): read the current note, gather NEW analysis and
-   information (web_search, read_file, grep_search, current_time), then update the
-   note's content and append a Version Control Log entry (append_vcl).
-2. EXPAND the network: add NEW nodes (register_node), add NEW edges (link_nodes),
-   update nodes (update_node), infer latent links (infer_edges), probe gaps
-   (probe_gap). All mutations live in database/database_tool.
-3. KEEP THE GRAPH HEALTHY: validate_graph after any mutation; respect §4.3a
-   bidirectional consistency; dedup before creating (§4.7c); ≤5 new nodes per run.
-
-## Grounding
-- Always materialize the anchor node's local graph (get_local_graph) first.
-- Pull evidence with search_nodes (vector RAG over the encoder layer) and
-  read_node before proposing changes.
-- Only add knowledge you can support with evidence; do not invent facts.
-
-## STOP rule
-- After AT MOST 3 tool calls, produce your answer / proposal as plain text.
-  Do not keep calling tools without writing text — the answer is the goal.
-
-{WORKSPACE_LAYOUT}
-"""
-
-PROMPT_RAG = f"""You are **codex_RAG**, the RETRIEVAL agent of the Graph Knowledge Network.
-
-## Mission
-Operate on and UNDERSTAND the network, then OUTPUT information:
-1. Materialize the local graph of the anchor node (get_local_graph, depth 3).
-2. Vector-search the encoder layer (search_nodes) for relevant chunks.
-3. Read node details (read_node), summarize local graphs (summarize_local).
-4. Answer the user's question grounded in the retrieved graph + evidence.
-
-## Rules
-- You are READ-ONLY: you never register/link/delete nodes. Use only retrieval
-  tools (no database mutations).
-- Ground every claim in the local graph or retrieved chunks; cite node names.
-- If the question needs knowledge outside the graph, say so and suggest where
-  the growth agent should add it.
-
-## STOP rule
-- After AT MOST 2 tool calls, synthesize and answer in plain text. Do not loop
-  on tools — the working memory is already provided in your prompt.
-
-{WORKSPACE_LAYOUT}
-"""
-
-PROMPT_NORMAL = f"""You are **codex_normal**, the general-purpose coding agent.
-
-## Mission
-Help with general tasks in the workspace: read/write files, run shell
-commands, search code, plan multi-step work, spawn sub-agents, use memory,
-send notifications, and fetch web information.
-
-## Rules
-- Prefer the dedicated tools (grep_search, search_files) over shell for search.
-- Use write_file/apply_patch for edits; never revert changes you didn't make.
-- Keep answers concise; reference file paths with line numbers when relevant.
-- The knowledge network (general_tools/, database/, LLMs/) is available on
-  disk — you may read it, but the RAG and growth agents own graph operations.
-
-{WORKSPACE_LAYOUT}
-"""
-
-PROMPTS: dict[str, str] = {
-    "codex_growth": PROMPT_GROWTH,
-    "codex_RAG": PROMPT_RAG,
-    "codex_normal": PROMPT_NORMAL,
-}
+_PROMPT_CACHE: dict[str, str] = {}
 
 
 def system_prompt(agent_id: str) -> str:
-    return PROMPTS.get(agent_id, PROMPTS[DEFAULT_AGENT])
+    """Load the agent's system prompt from its system_prompt.md file,
+    appending the shared WORKSPACE_LAYOUT.  Cached on first call."""
+    if agent_id not in _PROMPT_CACHE:
+        path = Path(__file__).resolve().parent.parent / agent_id / "system_prompt.md"
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, FileNotFoundError):
+            text = f"You are {agent_id}, a Graph Knowledge Network agent."
+        _PROMPT_CACHE[agent_id] = text.strip() + "\n\n" + WORKSPACE_LAYOUT
+    return _PROMPT_CACHE[agent_id]
 
 
 def prompt_file(agent_id: str) -> Path:

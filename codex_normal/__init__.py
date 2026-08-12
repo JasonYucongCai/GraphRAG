@@ -11,31 +11,30 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from codex_normal.engine import CodexNormalEngine, AGENT_ID
-from LLMs.deepseek import DeepSeekProvider
 
 __all__ = ["CodexNormalEngine", "create_agent", "AGENT_ID"]
 
 
-def create_agent(graph, encoder, llm: Optional[DeepSeekProvider] = None,
+def create_agent(graph, encoder, llm_node: Any = None,
                  store: Any = None, model: Optional[str] = None,
                  chat_mode: bool = False) -> CodexNormalEngine:
-    """Build the engine + its IPP node and return the engine (node attached)."""
+    """Build the engine + its IPP node and return the engine (node attached).
+    Uses the LLM IPP node (guardrail envelope + audit) — not raw provider."""
     from IPP.IPP_registry import GraphContext
     from codex_normal.engine import construct_engine_node
     from codex_normal.tools import construct_tools_node
+    from LLMs import llm_node as _llm_node
 
-    engine = CodexNormalEngine(graph, encoder, llm=llm, store=store,
+    _llm = llm_node or _llm_node()
+    engine = CodexNormalEngine(graph, encoder, llm_node=_llm, store=store,
                                model=model, chat_mode=chat_mode)
 
     ctx = GraphContext()
-    if llm is not None:
-        ctx.bind("provider", llm)
-    else:
-        from LLMs.IPP import _default_provider
-        ctx.bind("provider", _default_provider())
+    from LLMs.IPP import _default_provider
+    ctx.bind("provider", _default_provider())
 
-    from LLMs.IPP import llm_node
-    llm_node(context=ctx)
+    from LLMs.IPP import llm_node as _register_llm
+    _register_llm(context=ctx)
     tools_node = construct_tools_node(context=ctx)
 
     engine_node = construct_engine_node(engine, context=ctx)

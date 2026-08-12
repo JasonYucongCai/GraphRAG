@@ -28,6 +28,14 @@ from typing import Any, Callable, Optional
 # BaseTool — the four-phase lifecycle (sync port of tool_base.py)
 # ══════════════════════════════════════════════════════════════════════
 class ToolResult:
+    """Structured output envelope for every tool invocation.
+
+    Fields:
+        ok: bool — whether the tool executed successfully
+        content: str — the tool's output (truncated at 2000 chars by the engine)
+        error: Optional[str] — error message when ok=False
+        metadata: dict — extra context (timing, agent, file info, etc.)
+    """
     def __init__(self, ok: bool = True, content: str = "",
                  error: Optional[str] = None, **meta):
         self.ok = ok
@@ -52,6 +60,13 @@ class ToolResult:
 
 
 class ToolContext:
+    """Per-invocation context passed to every tool.
+
+    Fields:
+        workspace_root: str — absolute path to the workspace root
+        agent: Any — back-reference to the owning agent toolkit
+        extra: dict — additional context (session, graph, encoder, etc.)
+    """
     def __init__(self, workspace_root: str = "", agent: Any = None,
                  **extra):
         self.workspace_root = workspace_root
@@ -60,6 +75,16 @@ class ToolContext:
 
 
 class BaseTool:
+    """Abstract base for all recursive agent tools.
+
+    Four-phase lifecycle:
+        1. _run(args, ctx) — the entry point (catches exceptions)
+        2. invoke(args, ctx) — the actual tool logic (override in subclass)
+        3. definition() — the JSON-Schema tool definition the LLM sees
+        4. register(toolkit) — self-registers into an AgentToolkit
+
+    Every tool has a tool_name, tool_schema, category, and description.
+    """
     tool_name: str = "unnamed"
     tool_schema: dict = {"type": "object", "properties": {}}
     category: str = "general"
@@ -86,7 +111,18 @@ class BaseTool:
 
 
 class AgentToolkit:
-    """Per-agent tool registry + the construction machinery (REAL)."""
+    """Per-agent tool registry + recursive agent construction machinery.
+
+    Each recursive agent (a1, a2, a3, …) gets its own toolkit instance.
+    The toolkit holds the agent's tool definitions (agent_plan, agent_generate,
+    agent_create, agent_evaluate, agent_test, agent_improve, agent_deploy,
+    agent_status) and the AgentCompiler that builds the next-level agent.
+
+    Key state:
+        tools: dict[str, BaseTool] — registered tools by name
+        constructed: dict[str, Any] — agent_aX → engine (already built)
+        chain: list[str] — the ordered chain of agent IDs (a1, a2, …)
+    """
 
     # ── template files (same source the tools render) ─────────────────────
     TEMPLATES = Path(__file__).resolve().parent / "templates"
@@ -94,6 +130,16 @@ class AgentToolkit:
 
     def __init__(self, agent_id: str, root: Optional[Path] = None,
                  ws_root: str = "", graph=None, encoder=None, llm=None):
+        """Initialize the toolkit for one recursive agent level.
+
+        Args:
+            agent_id: e.g. "agent_a1", "agent_a2"
+            root: root path for the recursive_agents folder
+            ws_root: absolute workspace root path
+            graph: shared KnowledgeGraph
+            encoder: shared EncoderLayer
+            llm: the LLM provider (IPP node or raw provider)
+        """
         self.agent_id = agent_id
         self.root = Path(root) if root else \
             Path(__file__).resolve().parents[2] / "recursive_agents"

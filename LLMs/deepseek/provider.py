@@ -16,7 +16,6 @@ import logging
 from typing import Optional
 
 from general_tools.config import Config
-from general_tools.IPP import IPP
 
 logger = logging.getLogger("LLMs.deepseek.provider")
 
@@ -36,7 +35,7 @@ class LLMResult:
         return self.usage.get("total_tokens", 0)
 
 
-class DeepSeekProvider(IPP):
+class DeepSeekProvider:
     """
     Chat Completions provider for DeepSeek V4.
 
@@ -51,7 +50,6 @@ class DeepSeekProvider(IPP):
 
     def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None,
                  base_url: Optional[str] = None, max_retries: int = 2):
-        super().__init__()
         self.model = model or Config.get_model()
         self.api_key = api_key or Config.api_key()
         self.base_url = base_url or Config.DEEPSEEK_BASE_URL
@@ -69,15 +67,6 @@ class DeepSeekProvider(IPP):
     def switch_model(self, model_id: str) -> None:
         self.model = model_id
         self.name = f"deepseek:{model_id}"
-
-    # ── IPP transform: (messages, tools) → result ─────────────────────────
-    def transform(self, inp: dict) -> LLMResult:
-        messages = inp["messages"]
-        tools = inp.get("tools")
-        temperature = inp.get("temperature", Config.TEMPERATURE)
-        max_tokens = inp.get("max_tokens", Config.MAX_TOKENS)
-        return self.chat(messages=messages, tools=tools,
-                         temperature=temperature, max_tokens=max_tokens)
 
     def chat(self, messages: list, tools: Optional[list] = None,
              temperature: float = Config.TEMPERATURE,
@@ -250,7 +239,6 @@ class MockProvider(DeepSeekProvider):
     name = "mock"
 
     def __init__(self, **kwargs):
-        IPP.__init__(self)
         self.model = "mock"
         self.api_key = "mock"
         self.base_url = ""

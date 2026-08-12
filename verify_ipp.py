@@ -56,6 +56,8 @@ if fails:
 # 2. codex_growth agent (engine + tools + llm nodes via Γ)
 # ═══════════════════════════════════════════════════════════════════════
 print("\n=== 2. codex_growth ===")
+from LLMs.IPP import reset_llm_node  # noqa: E402
+reset_llm_node()  # fresh singleton for clean topology test
 from general_tools.build import build_graph  # noqa: E402
 
 graph, encoder = build_graph()

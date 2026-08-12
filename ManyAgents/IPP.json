@@ -1,0 +1,145 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "many_agents",
+  "description": "ManyAgents — the unified multi-agent platform IPP node. Two channels: `cards` manages the 20+ agent cards (identity, capacity, constraints, dataset persistence, cross-agent comments, provisioning); `orchestrate` runs the concurrent swarm runtime (start goals across agents, instruct individual agents, stop workers, query status, toggle the social conversation responder). Every operation flows through the guardrail envelope (ι_pre → π → Ω → ι_post → ρ → τ*) with hash-chained audits carrying the op + agent_id.",
+  "channels": [
+    {
+      "channel_id": "cards",
+      "handler": "ManyAgents.IPP_object:make_cards_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "AgentManagementOp",
+          "description": "{op: list|get|save|delete|comment|provision} — agent card lifecycle",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "type": "string", "enum": ["list", "get", "save", "delete", "comment", "provision"] },
+              "agent_id": { "type": "string" },
+              "card": { "type": "object" },
+              "author_id": { "type": "string" },
+              "text": { "type": "string" }
+            }
+          }
+        },
+        "process": {
+          "description": "CRUD over the AgentDataset: list all cards, get/save/delete one card, add a cross-agent comment, provision the 20-agent dataset from defaults.",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "AgentManagementResult",
+          "description": "{ok, data: {cards?, card?, ...}}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": { "type": "object", "required": ["op"], "properties": { "op": { "type": "string" } } }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 5000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/many_agents.cards.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 10, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 0 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            { "node_class": "*", "output_logical_type": "AgentManagementOp", "edge_count_range": { "min": 0, "max": 128 }, "compatibility": "any" }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 128,
+            "acknowledgment": "required",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    },
+    {
+      "channel_id": "orchestrate",
+      "handler": "ManyAgents.IPP_object:make_orchestrate_handler",
+      "ipp_object": {
+        "input": {
+          "logical_type": "SwarmOp",
+          "description": "{op: start|stop|instruct|status|apply_settings|responder_start|responder_stop} — swarm lifecycle operations",
+          "schema": {
+            "type": "object",
+            "required": ["op"],
+            "properties": {
+              "op": { "type": "string", "enum": ["start", "stop", "instruct", "status", "apply_settings", "responder_start", "responder_stop"] },
+              "goal_title": { "type": "string" },
+              "instructions": { "type": "string" },
+              "agent_ids": { "type": "array", "items": { "type": "string" } },
+              "agent_id": { "type": "string" },
+              "goal_id": { "type": "string" }
+            }
+          }
+        },
+        "process": {
+          "description": "Orchestrate the swarm: start goals, instruct agents, stop workers, query status, toggle the social conversation responder. Resolves the SwarmManager from bindings[swarm].",
+          "kind": "deterministic"
+        },
+        "output": {
+          "logical_type": "SwarmResult",
+          "description": "{ok, data: {goal_id?, agents?, status?, ...}}",
+          "schema": null
+        }
+      },
+      "ipp_executor": {
+        "integrity": {
+          "checksum_algorithm": "sha256",
+          "signature_required": false,
+          "verification_endpoint": null,
+          "payload_validation_schema": { "type": "object", "required": ["op"], "properties": { "op": { "type": "string" } } }
+        },
+        "policy": {
+          "max_cost_per_call_usd": 0,
+          "max_latency_ms": 300000,
+          "rate_limit_rps": 0,
+          "security_clearance": "portal",
+          "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" }
+        },
+        "provenance": {
+          "audit_level": "full",
+          "log_endpoint": "graph_data/logs/IPP/many_agents.orchestrate.jsonl",
+          "chain_of_custody": true
+        },
+        "error_handling": {
+          "fallback_nodes": [],
+          "circuit_breaker": { "failure_threshold": 10, "recovery_timeout_ms": 30000 },
+          "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 0 }
+        },
+        "edge_capabilities": {
+          "upstream_compatible": [
+            { "node_class": "*", "output_logical_type": "SwarmOp", "edge_count_range": { "min": 0, "max": 128 }, "compatibility": "any" }
+          ],
+          "downstream_compatible": [],
+          "routing_modes": ["unicast"],
+          "constraint_envelope": {
+            "max_parallel_edges": 128,
+            "acknowledgment": "required",
+            "backpressure_modes": ["block"],
+            "resolution_policy": "constructor_resolved"
+          }
+        }
+      }
+    }
+  ]
+}

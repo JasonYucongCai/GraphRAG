@@ -1,0 +1,118 @@
+{
+  "$schema": "https://ipp-spec.org/v0.2.8/schema.json",
+  "ipp_version": "0.2.8",
+  "node_id": "social",
+  "description": "Social — the unified Multi Agent social layer IPP node. 11 channels: card (agent registration/discovery/comment), profile (3-property profile), tasks (shared goal/task folders), chat_board (global chat with addressing), events (streaming event bus), a2a (4 formal A2A modes), discover (portal: agents/goals/status), command (portal: goal/task/instruct/board), monitor (live swarm activity stream), swarm (start/stop team), settings (platform config). Every operation flows through the guardrail envelope (ι_pre → π → Ω → ι_post → ρ → τ*) with hash-chained audits.",
+  "channels": [
+    {
+      "channel_id": "card",
+      "handler": "IPP_Social.IPP_object:make_card_handler",
+      "ipp_object": {
+        "input": { "logical_type": "SocialOp", "description": "{op: register|get|list|comment} — agent card lifecycle", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["register", "get", "list", "comment"] }, "agent_id": { "type": "string" }, "name": { "type": "string" }, "bio": { "type": "string" }, "capacity": { "type": "object" }, "random_property": { "type": "object" }, "constraints": { "type": "object" }, "overwrite": { "type": "boolean" }, "target_agent_id": { "type": "string" }, "author_id": { "type": "string" }, "text": { "type": "string" } } } },
+        "process": { "description": "Agent card lifecycle: register/get/list/comment. Resolves dataset + events from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "AgentCard", "description": "{ok, card|cards}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 30000, "rate_limit_rps": 0, "security_clearance": "social", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.card.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "profile",
+      "handler": "IPP_Social.IPP_object:make_profile_handler",
+      "ipp_object": {
+        "input": { "logical_type": "SocialOp", "description": "{op: get|update_constraints, agent_id, constraints?}", "schema": { "type": "object", "required": ["op", "agent_id"], "properties": { "op": { "enum": ["get", "update_constraints"] }, "agent_id": { "type": "string" }, "constraints": { "type": "object" } } } },
+        "process": { "description": "Read/update agent profile (capacity + random property + constraints).", "kind": "deterministic" },
+        "output": { "logical_type": "AgentProfile", "description": "{capacity, random_property, constraints}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op", "agent_id"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 30000, "rate_limit_rps": 0, "security_clearance": "social", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.profile.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "tasks",
+      "handler": "IPP_Social.IPP_object:make_tasks_handler",
+      "ipp_object": {
+        "input": { "logical_type": "SocialOp", "description": "{op: create_goal|list_goals|get_goal|delete_goal|create_task|update_task|get_task|list_tasks, ...}", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["create_goal", "list_goals", "get_goal", "delete_goal", "create_task", "update_task", "get_task", "list_tasks"] }, "title": { "type": "string" }, "description": { "type": "string" }, "goal_id": { "type": "string" }, "task_id": { "type": "string" }, "owner_agent_id": { "type": "string" }, "assignee_agent_id": { "type": "string" }, "author_agent_id": { "type": "string" }, "status": { "type": "string" }, "note": { "type": "string" }, "depends_on": { "type": "array" } } } },
+        "process": { "description": "Shared goal/task folder management. Resolves tasks + events from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "TaskResult", "description": "{ok, goal|task|goals|tasks}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 30000, "rate_limit_rps": 0, "security_clearance": "social", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.tasks.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "chat_board",
+      "handler": "IPP_Social.IPP_object:make_chat_board_handler",
+      "ipp_object": {
+        "input": { "logical_type": "SocialOp", "description": "{op: post|get|get_since|clear, ...} — global chat board", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["post", "get", "get_since", "clear"] }, "author_agent_id": { "type": "string" }, "text": { "type": "string" }, "to_agent_id": { "type": "string" }, "tags": { "type": "array" }, "limit": { "type": "integer" }, "after_id": { "type": "integer" }, "scope": { "type": "string" } } } },
+        "process": { "description": "Global chat board with addressing (direct/broadcast/board). Resolves chat + events from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "ChatResult", "description": "{ok, messages|...}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 30000, "rate_limit_rps": 0, "security_clearance": "social", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.chat_board.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "events",
+      "handler": "IPP_Social.IPP_object:make_events_handler",
+      "ipp_object": {
+        "input": { "logical_type": "StreamQuery", "description": "{since?, live?, timeout_s?}", "schema": null },
+        "process": { "description": "Streaming event bus (buffered or live). Resolves events from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "EventStream", "description": "{ok, mode, events, cursor}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": null }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 600000, "rate_limit_rps": 0, "security_clearance": "social", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.events.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 64, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "a2a",
+      "handler": "IPP_Social.IPP_object:make_a2a_handler",
+      "ipp_object": {
+        "input": { "logical_type": "A2AOp", "description": "{mode: sync|async|stream|push, ...} — A2A interaction", "schema": { "type": "object", "required": ["mode"], "properties": { "mode": { "enum": ["sync", "async", "stream", "push"] }, "from_agent_id": { "type": "string" }, "to_agent_id": { "type": "string" }, "task": { "type": "object" }, "message": { "type": "string" } } } },
+        "process": { "description": "Four formal A2A modes. Resolves a2a_ctx from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "A2AResult", "description": "{ok, ...}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["mode"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 60000, "rate_limit_rps": 0, "security_clearance": "social", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.a2a.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "discover",
+      "handler": "IPP_Social.IPP_object:make_discover_handler",
+      "ipp_object": {
+        "input": { "logical_type": "PortalQuery", "description": "{op: agents|goals|cards|status|board|goal_detail}", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["agents", "goals", "cards", "status", "board", "goal_detail"] }, "goal_id": { "type": "string" } } } },
+        "process": { "description": "Discover social network state. Resolves dataset + tasks + swarm + chat from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "PortalInfo", "description": "{agents|goals|cards|status}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 30000, "rate_limit_rps": 0, "security_clearance": "portal", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.discover.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 5, "recovery_timeout_ms": 30000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "command",
+      "handler": "IPP_Social.IPP_object:make_command_handler",
+      "ipp_object": {
+        "input": { "logical_type": "PortalCommand", "description": "{op: goal|task|instruct|board|goals|delete_goal|clear_chat}", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["goal", "task", "instruct", "board", "goals", "delete_goal", "clear_chat"] }, "title": { "type": "string" }, "description": { "type": "string" }, "goal_id": { "type": "string" }, "agent_id": { "type": "string" }, "instruction": { "type": "string" }, "author_agent_id": { "type": "string" }, "text": { "type": "string" }, "to_agent_id": { "type": "string" }, "scope": { "type": "string" } } } },
+        "process": { "description": "Portal commands: goal/task create, agent instruct, board post.", "kind": "agent" },
+        "output": { "logical_type": "PortalResult", "description": "{ok, ...}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 60000, "rate_limit_rps": 0, "security_clearance": "portal", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.command.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast", "multicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "monitor",
+      "handler": "IPP_Social.IPP_object:make_monitor_handler",
+      "ipp_object": {
+        "input": { "logical_type": "StreamQuery", "description": "{since?, live?, timeout_s?}", "schema": null },
+        "process": { "description": "Live swarm activity stream. Resolves swarm from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "SwarmEventStream", "description": "{mode, events, cursor}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": null }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 600000, "rate_limit_rps": 0, "security_clearance": "portal", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.monitor.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast", "multicast"], "constraint_envelope": { "max_parallel_edges": 64, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "swarm",
+      "handler": "IPP_Social.IPP_object:make_swarm_handler",
+      "ipp_object": {
+        "input": { "logical_type": "SwarmCommand", "description": "{op: start|stop|status|addresses}", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["start", "stop", "status", "addresses"] }, "goal": { "type": "string" }, "instructions": { "type": "string" }, "goal_id": { "type": "string" }, "agent_ids": { "type": "array", "items": { "type": "string" } } } } },
+        "process": { "description": "Start/stop concurrent agent team. Resolves swarm from bindings.", "kind": "agent" },
+        "output": { "logical_type": "SwarmResult", "description": "{ok, goal_id, agents, status}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 60000, "rate_limit_rps": 0, "security_clearance": "portal", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.swarm.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [ { "node_class": "*", "input_logical_type": "Task", "edge_count_range": { "min": 0, "max": 64 }, "compatibility": "exact" } ], "routing_modes": ["unicast", "multicast", "broadcast"], "constraint_envelope": { "max_parallel_edges": 64, "acknowledgment": "optional", "backpressure_modes": ["block", "buffer"], "resolution_policy": "constructor_resolved" } } }
+    },
+    {
+      "channel_id": "settings",
+      "handler": "IPP_Social.IPP_object:make_settings_handler",
+      "ipp_object": {
+        "input": { "logical_type": "SettingsOp", "description": "{op: get|set, settings?}", "schema": { "type": "object", "required": ["op"], "properties": { "op": { "enum": ["get", "set"] }, "settings": { "type": "object" } } } },
+        "process": { "description": "Platform settings read/write. Resolves settings + swarm from bindings.", "kind": "deterministic" },
+        "output": { "logical_type": "SettingsResult", "description": "{ok, settings}", "schema": null }
+      },
+      "ipp_executor": { "integrity": { "checksum_algorithm": "sha256", "signature_required": false, "verification_endpoint": null, "payload_validation_schema": { "type": "object", "required": ["op"] } }, "policy": { "max_cost_per_call_usd": 0, "max_latency_ms": 30000, "rate_limit_rps": 0, "security_clearance": "portal", "retry_policy": { "max_retries": 0, "backoff_strategy": "constant" } }, "provenance": { "audit_level": "full", "log_endpoint": "graph_data/logs/IPP/social.settings.jsonl", "chain_of_custody": true }, "error_handling": { "fallback_nodes": [], "circuit_breaker": { "failure_threshold": 3, "recovery_timeout_ms": 60000 }, "escalation_policy": { "max_escalation_depth": 1, "escalation_delay_ms": 1000 } }, "edge_capabilities": { "upstream_compatible": [], "downstream_compatible": [], "routing_modes": ["unicast"], "constraint_envelope": { "max_parallel_edges": 8, "acknowledgment": "optional", "backpressure_modes": ["block"], "resolution_policy": "constructor_resolved" } } }
+    }
+  ]
+}
