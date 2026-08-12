@@ -2,9 +2,9 @@
 
 A **self-contained, local-first knowledge-graph platform** for agentic research: papers and notebooks are ingested into a typed, directed knowledge graph where every node is also a Markdown note with a Version Control Log. Three shared codex agents operate the network, a **Multi Agent social layer** (strictly wired with **IPP v0.2.8**) lets 20 personalities collaborate, chat, and work toward shared goals, and a **Recursive Agent** portal chains agents that build increasingly capable successors — all from one web control center.
 
-![Graph Knowledge Network — Control Center](assets/screenshot-controlcenter-20260809.png)
+![Graph Knowledge Network — Control Center](assets/screenshot-graphrag-20260812.png)
 
-![Multi Agent — the social layer](assets/screenshot-multiagent-20260809.png)
+![Multi Agent — the social layer](assets/screenshot-multi-agent-20260812.png)
 
 ![Recursive Agent — agent chain](assets/screenshot-recursiveagent-20260809.png)
 
